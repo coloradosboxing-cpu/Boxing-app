@@ -146,6 +146,7 @@
     <div class="nav-label" style="margin-top:16px;">Clases</div>
     <div class="nav-item" onclick="showPage('classes', this)"><span class="nav-icon">🗓️</span> Asistencia</div>
     <div class="nav-item" onclick="showPage('alerts', this)"><span class="nav-icon">🔔</span> Alertas</div>
+    <div class="nav-item" onclick="showPage('reports', this)"><span class="nav-icon">📈</span> Reportes</div>
   </nav>
   <div style="padding:12px 16px;border-top:1px solid #222;display:flex;flex-direction:column;gap:8px;">
   <button class="btn btn-outline" style="width:100%;font-size:11px;" onclick="exportData()">⬇ Exportar datos</button>
@@ -194,6 +195,37 @@
     <div class="page" id="page-alerts">
       <div class="section-header"><div class="section-title">🔔 ALERTAS DEL SISTEMA</div></div>
       <div class="alerts-list" id="alerts-list"></div>
+    </div>
+  </div>
+
+    <div class="page" id="page-reports">
+      <div class="tab-bar" style="margin-bottom:20px;">
+        <div class="tab active" onclick="setReportPeriod('day', this)">Hoy</div>
+        <div class="tab" onclick="setReportPeriod('week', this)">Esta Semana</div>
+        <div class="tab" onclick="setReportPeriod('month', this)">Este Mes</div>
+      </div>
+      <div class="stats-grid" id="report-stats"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+        <div>
+          <div class="section-header"><div class="section-title">💰 INGRESOS</div></div>
+          <div class="table-wrap">
+            <table><thead><tr><th>Fecha</th><th>Miembro</th><th>Concepto</th><th>Monto</th><th>Método</th></tr></thead>
+            <tbody id="report-payments-tbody"></tbody></table>
+          </div>
+        </div>
+        <div>
+          <div class="section-header"><div class="section-title">🥊 ASISTENCIA</div></div>
+          <div class="table-wrap">
+            <table><thead><tr><th>Fecha</th><th>Clase</th><th>Asistentes</th></tr></thead>
+            <tbody id="report-classes-tbody"></tbody></table>
+          </div>
+          <div class="section-header" style="margin-top:20px;"><div class="section-title">🆕 MIEMBROS NUEVOS</div></div>
+          <div class="table-wrap">
+            <table><thead><tr><th>Fecha</th><th>Miembro</th><th>Plan</th></tr></thead>
+            <tbody id="report-members-tbody"></tbody></table>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </main>
@@ -437,9 +469,10 @@ function showPage(page, el) {
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+page).classList.add('active');
   el.classList.add('active');
-  const titles={dashboard:'DASHBOARD',members:'MIEMBROS',payments:'PAGOS',classes:'ASISTENCIA',alerts:'ALERTAS'};
+  const titles={dashboard:'DASHBOARD',members:'MIEMBROS',payments:'PAGOS',classes:'ASISTENCIA',alerts:'ALERTAS',reports:'REPORTES'};
   document.getElementById('page-title').textContent = titles[page]||page.toUpperCase();
   render();
+  if (page === 'reports') renderReports();
 }
 function filterByType(type, el) { currentFilter=type; document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); el.classList.add('active'); renderMembersTable(); }
 function filterMembers() { renderMembersTable(); }
@@ -509,11 +542,34 @@ async function saveClass() {
   const ok = await dbAddClass(newClass);
   if (!ok) return;
   classes.push(newClass);
+
+  // Auto-register payment for per-class members
   for (const id of attendees) {
     const m=members.find(x=>x.id===id);
-    if(m&&m.plan==='perclass'&&m.classesLeft>0) { m.classesLeft--; await dbUpdateMember(m); }
+    if (m && m.plan==='perclass') {
+      // Register payment automatically
+      const newPayment = {
+        id: Date.now() + id,
+        memberId: m.id,
+        date: date,
+        concept: 'Clase individual',
+        amount: m.price || 0,
+        method: 'Efectivo'
+      };
+      await dbAddPayment(newPayment);
+      payments.push(newPayment);
+    }
   }
+
   closeModal('add-class-modal'); render(); showSaveToast();
+  
+  // Show summary of charges
+  const perClassAttendees = attendees.map(id => members.find(x=>x.id===id)).filter(m=>m&&m.plan==='perclass');
+  if (perClassAttendees.length > 0) {
+    const total = perClassAttendees.reduce((s,m)=>s+(m.price||0),0);
+    const names = perClassAttendees.map(m=>m.name.split(' ')[0]).join(', ');
+    showToast(`💰 COBRADO: ${names} — $${total}`, '#b8960c');
+  }
 }
 function editMember(id) {
   const m=members.find(x=>x.id===id); if(!m) return;
@@ -631,6 +687,118 @@ function sendWhatsApp(id) {
 
   const url = `https://wa.me/${phone}?text=${encodeURIComponent(mensaje)}`;
   window.open(url, '_blank');
+}
+
+// ========= REPORTS =========
+let reportPeriod = 'day';
+
+function setReportPeriod(period, el) {
+  reportPeriod = period;
+  document.querySelectorAll('#page-reports .tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  renderReports();
+}
+
+function getDateRange(period) {
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+  if (period === 'day') {
+    return { start: todayStr, end: todayStr };
+  } else if (period === 'week') {
+    const day = now.getDay();
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1));
+    return { start: monday.toISOString().split('T')[0], end: todayStr };
+  } else {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    return { start, end: todayStr };
+  }
+}
+
+function inRange(dateStr, range) {
+  if (!dateStr) return false;
+  return dateStr >= range.start && dateStr <= range.end;
+}
+
+function renderReports() {
+  const range = getDateRange(reportPeriod);
+
+  const filteredPayments = payments.filter(p => inRange(p.date, range));
+  const filteredClasses = classes.filter(c => inRange(c.date, range));
+  const filteredMembers = members.filter(m => inRange(m.start, range));
+
+  const totalIngresos = filteredPayments.reduce((s, p) => s + (p.amount || 0), 0);
+  const totalAsistencia = filteredClasses.reduce((s, c) => s + (c.attendees?.length || 0), 0);
+  const totalClases = filteredClasses.length;
+  const totalNuevos = filteredMembers.length;
+
+  // Stats
+  document.getElementById('report-stats').innerHTML = `
+    <div class="stat-card success">
+      <div class="stat-icon">💰</div>
+      <div class="stat-value">$${totalIngresos}</div>
+      <div class="stat-label">Ingresos</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">🥊</div>
+      <div class="stat-value">${totalClases}</div>
+      <div class="stat-label">Clases</div>
+    </div>
+    <div class="stat-card warning">
+      <div class="stat-icon">👥</div>
+      <div class="stat-value">${totalAsistencia}</div>
+      <div class="stat-label">Asistencias</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">🆕</div>
+      <div class="stat-value">${totalNuevos}</div>
+      <div class="stat-label">Nuevos Miembros</div>
+    </div>
+  `;
+
+  // Payments table
+  const payTbody = document.getElementById('report-payments-tbody');
+  if (filteredPayments.length === 0) {
+    payTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--gray-light);padding:16px">Sin ingresos</td></tr>';
+  } else {
+    payTbody.innerHTML = filteredPayments
+      .sort((a,b) => b.date.localeCompare(a.date))
+      .map(p => `<tr>
+        <td>${formatDate(p.date)}</td>
+        <td>${memberName(p.memberId)}</td>
+        <td>${p.concept}</td>
+        <td style="font-family:'Bebas Neue';font-size:18px;color:var(--gold)">$${p.amount}</td>
+        <td>${p.method}</td>
+      </tr>`).join('');
+  }
+
+  // Classes table
+  const classTbody = document.getElementById('report-classes-tbody');
+  if (filteredClasses.length === 0) {
+    classTbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--gray-light);padding:16px">Sin clases</td></tr>';
+  } else {
+    classTbody.innerHTML = filteredClasses
+      .sort((a,b) => b.date.localeCompare(a.date))
+      .map(c => `<tr>
+        <td>${formatDate(c.date)}</td>
+        <td>${c.type}</td>
+        <td><span style="font-family:'Bebas Neue';font-size:18px;color:var(--gold)">${c.attendees?.length || 0}</span></td>
+      </tr>`).join('');
+  }
+
+  // New members table
+  const memTbody = document.getElementById('report-members-tbody');
+  if (filteredMembers.length === 0) {
+    memTbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--gray-light);padding:16px">Sin nuevos miembros</td></tr>';
+  } else {
+    memTbody.innerHTML = filteredMembers
+      .sort((a,b) => b.start.localeCompare(a.start))
+      .map(m => `<tr>
+        <td>${formatDate(m.start)}</td>
+        <td>${m.name}</td>
+        <td><span class="badge ${m.plan==='perclass'?'badge-perclass':''}">${m.plan==='monthly'?'📅 Mensual':'🎟 Por Clase'}</span></td>
+      </tr>`).join('');
+  }
 }
 
 loadData();
