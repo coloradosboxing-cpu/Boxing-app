@@ -390,7 +390,8 @@ function renderMembersTable() {
     const dl = m.plan==='monthly' ? daysLeft(m.expiry) : null;
     const vencInfo = m.plan==='monthly' ? formatDate(m.expiry) : (m.classesLeft!==null ? `${m.classesLeft} clases restantes` : '—');
     const daysDisplay = m.plan==='monthly'&&dl!==null ? `<span class="days-left ${daysClass(dl)}">${dl<0?'VENCIDO':dl+' días'}</span>` : '—';
-    return `<tr><td><div class="member-name">${m.name}</div><div class="member-id">${m.phone}</div></td><td><span class="badge ${m.plan==='perclass'?'badge-perclass':''}">${m.plan==='monthly'?'📅 Mensual':'🎟 Por Clase'}</span></td><td>${statusBadge(status)}</td><td>${vencInfo}</td><td>${daysDisplay}</td><td><div class="actions-cell"><button class="btn btn-outline btn-sm" onclick="editMember(${m.id})">✏ Editar</button><button class="btn btn-gold btn-sm" onclick="quickPay(${m.id})">💰 Pago</button><button class="btn btn-danger btn-sm" onclick="deleteMember(${m.id})">🗑</button></div></td></tr>`;
+    const waBtn = m.phone ? `<button class="btn btn-sm" style="background:#25D366;color:white;" onclick="sendWhatsApp(${m.id})">💬 WA</button>` : '';
+    return `<tr><td><div class="member-name">${m.name}</div><div class="member-id">${m.phone}</div></td><td><span class="badge ${m.plan==='perclass'?'badge-perclass':''}">${m.plan==='monthly'?'📅 Mensual':'🎟 Por Clase'}</span></td><td>${statusBadge(status)}</td><td>${vencInfo}</td><td>${daysDisplay}</td><td><div class="actions-cell"><button class="btn btn-outline btn-sm" onclick="editMember(${m.id})">✏ Editar</button><button class="btn btn-gold btn-sm" onclick="quickPay(${m.id})">💰 Pago</button>${waBtn}<button class="btn btn-danger btn-sm" onclick="deleteMember(${m.id})">🗑</button></div></td></tr>`;
   }).join('');
 }
 function renderPaymentsTable() {
@@ -410,7 +411,11 @@ function renderAlerts() {
     if (m.plan==='perclass'&&m.classesLeft!==null&&m.classesLeft<=2&&m.classesLeft>0) alerts.push({type:'warning',icon:'🎟',name:m.name,msg:`Solo ${m.classesLeft} clase(s) restantes`});
   });
   list.innerHTML = alerts.length===0 ? '<div style="text-align:center;padding:40px;color:var(--gray-light)">✅ Sin alertas activas</div>' :
-    alerts.map(a=>`<div class="alert-item ${a.type}"><div class="alert-icon">${a.icon}</div><div class="alert-text"><strong>${a.name}</strong><span>${a.msg}</span></div><button class="btn btn-gold btn-sm" onclick="quickPay(${members.find(x=>x.name===a.name)?.id})">Renovar</button></div>`).join('');
+    alerts.map(a=>{
+    const m = members.find(x=>x.name===a.name);
+    const waBtn = m && m.phone ? `<button class="btn btn-sm" style="background:#25D366;color:white;margin-right:6px;" onclick="sendWhatsApp(${m.id})">💬 WA</button>` : '';
+    return `<div class="alert-item ${a.type}"><div class="alert-icon">${a.icon}</div><div class="alert-text"><strong>${a.name}</strong><span>${a.msg}</span></div>${waBtn}<button class="btn btn-gold btn-sm" onclick="quickPay(${m?.id})">Renovar</button></div>`;
+  }).join('');
 }
 function renderDashboardExpiring() {
   const tbody = document.getElementById('expiring-tbody');
@@ -420,7 +425,8 @@ function renderDashboardExpiring() {
     const dl = m.plan==='monthly' ? daysLeft(m.expiry) : null;
     const pct = dl!==null ? Math.max(0,Math.min(100,(dl/30)*100)) : 0;
     const barClass = dl!==null&&dl<0?'danger':dl<=7?'warning':'';
-    return `<tr><td><div class="member-name">${m.name}</div><div class="member-id">${m.phone}</div></td><td>${m.plan==='monthly'?'Mensual':'Por Clase'}</td><td>${formatDate(m.expiry)}</td><td><span class="days-left ${daysClass(dl)}">${dl!==null?(dl<0?'VENCIDO':dl+' días'):'—'}</span>${m.plan==='monthly'?`<div class="progress-bar"><div class="progress-fill ${barClass}" style="width:${pct}%"></div></div>`:''}</td><td><button class="btn btn-gold btn-sm" onclick="quickPay(${m.id})">💰 Cobrar</button></td></tr>`;
+    const waBtn2 = m.phone ? `<button class="btn btn-sm" style="background:#25D366;color:white;margin-left:6px;" onclick="sendWhatsApp(${m.id})">💬 WA</button>` : '';
+    return `<tr><td><div class="member-name">${m.name}</div><div class="member-id">${m.phone}</div></td><td>${m.plan==='monthly'?'Mensual':'Por Clase'}</td><td>${formatDate(m.expiry)}</td><td><span class="days-left ${daysClass(dl)}">${dl!==null?(dl<0?'VENCIDO':dl+' días'):'—'}</span>${m.plan==='monthly'?`<div class="progress-bar"><div class="progress-fill ${barClass}" style="width:${pct}%"></div></div>`:''}</td><td><button class="btn btn-gold btn-sm" onclick="quickPay(${m.id})">💰 Cobrar</button>${waBtn2}</td></tr>`;
   }).join('');
 }
 function renderRecentPayments() {
@@ -592,6 +598,39 @@ function showToast(msg, color) {
   toast.style.opacity = '1';
   clearTimeout(toast._t);
   toast._t = setTimeout(() => toast.style.opacity = '0', 2000);
+}
+
+// ========= WHATSAPP =========
+function sendWhatsApp(id) {
+  const m = members.find(x => x.id === id);
+  if (!m || !m.phone) { alert('Este miembro no tiene teléfono registrado'); return; }
+
+  const status = getMemberStatus(m);
+  const dl = daysLeft(m.expiry);
+  const gymName = "Colorado's Boxing Club";
+
+  let mensaje = '';
+
+  if (status === 'expired') {
+    mensaje = `Hola ${m.name.split(' ')[0]}! 👊 Te habla ${gymName}. Tu membresía ha *vencido*. ¡Renueva hoy y sigue entrenando! Cualquier duda aquí estamos 💪`;
+  } else if (status === 'expiring') {
+    mensaje = `Hola ${m.name.split(' ')[0]}! 👊 Te habla ${gymName}. Tu membresía vence en *${dl} días* (${formatDate(m.expiry)}). ¡No pierdas tu lugar, renueva a tiempo! 💪`;
+  } else if (m.plan === 'perclass' && m.classesLeft <= 2) {
+    mensaje = `Hola ${m.name.split(' ')[0]}! 👊 Te habla ${gymName}. Solo te quedan *${m.classesLeft} clase(s)*. ¡Recarga tu paquete para seguir entrenando! 💪`;
+  } else {
+    mensaje = `Hola ${m.name.split(' ')[0]}! 👊 Te habla ${gymName}. ¿Cómo estás? Aquí para cualquier cosa que necesites 💪`;
+  }
+
+  // Clean phone number - remove spaces, dashes, parentheses
+  let phone = m.phone.replace(/[\s\-\(\)]/g, '');
+  // Add Mexico country code if no + prefix
+  if (!phone.startsWith('+') && !phone.startsWith('52')) {
+    phone = '52' + phone;
+  }
+  phone = phone.replace('+', '');
+
+  const url = `https://wa.me/${phone}?text=${encodeURIComponent(mensaje)}`;
+  window.open(url, '_blank');
 }
 
 loadData();
