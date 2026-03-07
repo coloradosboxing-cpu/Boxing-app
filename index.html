@@ -249,9 +249,7 @@
           <div class="form-group"><label>Duración (meses)</label><select id="new-duration"><option value="1">1 mes</option><option value="3">3 meses</option><option value="6">6 meses</option><option value="12">12 meses</option></select></div>
         </div>
       </div>
-      <div id="perclass-fields" style="display:none;">
-        <div class="form-group"><label>Clases Compradas</label><input type="number" id="new-classes" placeholder="10"></div>
-      </div>
+      <div id="perclass-fields" style="display:none;"></div>
       <div class="form-group"><label>Notas</label><textarea id="new-notes" rows="2" placeholder="Información adicional..."></textarea></div>
     </div>
     <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('add-member-modal')">Cancelar</button><button class="btn btn-gold" onclick="addMember()">Registrar</button></div>
@@ -388,7 +386,7 @@ function addMonths(dateStr, months) { const d = new Date(dateStr); d.setMonth(d.
 function formatDate(d) { if (!d) return '—'; const [y,m,day] = d.split('-'); return `${day}/${m}/${y}`; }
 function memberName(id) { const m = members.find(x => x.id === id); return m ? m.name : '—'; }
 function getMemberStatus(m) {
-  if (m.plan === 'perclass') return m.classesLeft > 0 ? 'active' : 'expired';
+  if (m.plan === 'perclass') return 'active';
   const dl = daysLeft(m.expiry);
   if (dl === null) return m.status;
   if (dl < 0) return 'expired';
@@ -420,7 +418,7 @@ function renderMembersTable() {
   tbody.innerHTML = filtered.map(m => {
     const status = getMemberStatus(m);
     const dl = m.plan==='monthly' ? daysLeft(m.expiry) : null;
-    const vencInfo = m.plan==='monthly' ? formatDate(m.expiry) : (m.classesLeft!==null ? `${m.classesLeft} clases restantes` : '—');
+    const vencInfo = m.plan==='monthly' ? formatDate(m.expiry) : 'Pago por clase';
     const daysDisplay = m.plan==='monthly'&&dl!==null ? `<span class="days-left ${daysClass(dl)}">${dl<0?'VENCIDO':dl+' días'}</span>` : '—';
     const waBtn = m.phone ? `<button class="btn btn-sm" style="background:#25D366;color:white;" onclick="sendWhatsApp(${m.id})">💬 WA</button>` : '';
     return `<tr><td><div class="member-name">${m.name}</div><div class="member-id">${m.phone}</div></td><td><span class="badge ${m.plan==='perclass'?'badge-perclass':''}">${m.plan==='monthly'?'📅 Mensual':'🎟 Por Clase'}</span></td><td>${statusBadge(status)}</td><td>${vencInfo}</td><td>${daysDisplay}</td><td><div class="actions-cell"><button class="btn btn-outline btn-sm" onclick="editMember(${m.id})">✏ Editar</button><button class="btn btn-gold btn-sm" onclick="quickPay(${m.id})">💰 Pago</button>${waBtn}<button class="btn btn-danger btn-sm" onclick="deleteMember(${m.id})">🗑</button></div></td></tr>`;
@@ -440,7 +438,7 @@ function renderAlerts() {
     const s = getMemberStatus(m);
     if (s==='expired') alerts.push({type:'danger',icon:'🚨',name:m.name,msg:'Mensualidad vencida — requiere renovación'});
     else if (s==='expiring') alerts.push({type:'warning',icon:'⏳',name:m.name,msg:`Vence en ${daysLeft(m.expiry)} días (${formatDate(m.expiry)})`});
-    if (m.plan==='perclass'&&m.classesLeft!==null&&m.classesLeft<=2&&m.classesLeft>0) alerts.push({type:'warning',icon:'🎟',name:m.name,msg:`Solo ${m.classesLeft} clase(s) restantes`});
+
   });
   list.innerHTML = alerts.length===0 ? '<div style="text-align:center;padding:40px;color:var(--gray-light)">✅ Sin alertas activas</div>' :
     alerts.map(a=>{
@@ -501,7 +499,7 @@ async function addMember() {
   const start=document.getElementById('new-start').value||today();
   let expiry=null,classesLeft=null,duration=1;
   if (plan==='monthly') { duration=parseInt(document.getElementById('new-duration').value); expiry=addMonths(start,duration); }
-  else { classesLeft=parseInt(document.getElementById('new-classes').value)||10; }
+  else { classesLeft=null; }
   const newMember={id:nextId++,name,phone,plan,start,expiry,duration,price,status:'active',notes,classesLeft};
   const ok = await dbAddMember(newMember);
   if (!ok) return;
@@ -526,11 +524,7 @@ async function addPayment() {
     m.expiry=addMonths(base,m.duration||1); m.status='active';
     await dbUpdateMember(m);
   }
-  if ((concept==='Pack de clases'||concept==='Clase individual')&&m&&m.plan==='perclass') {
-    const added=concept==='Clase individual'?1:Math.floor(amount/m.price);
-    m.classesLeft=(m.classesLeft||0)+added;
-    await dbUpdateMember(m);
-  }
+
   closeModal('add-payment-modal'); render(); showSaveToast();
 }
 async function saveClass() {
