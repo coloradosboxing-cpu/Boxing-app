@@ -186,7 +186,7 @@
     </div>
     <div class="page" id="page-payments">
       <div class="section-header"><div class="section-title">HISTORIAL DE PAGOS</div><button class="btn btn-gold" onclick="openModal('add-payment-modal')">+ Registrar Pago</button></div>
-      <div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Miembro</th><th>Concepto</th><th>Monto</th><th>Método</th></tr></thead><tbody id="payments-tbody"></tbody></table></div>
+      <div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Miembro</th><th>Concepto</th><th>Monto</th><th>Método</th><th></th></tr></thead><tbody id="payments-tbody"></tbody></table></div>
     </div>
     <div class="page" id="page-classes">
       <div class="section-header"><div class="section-title">REGISTRO DE ASISTENCIA</div><button class="btn btn-gold" onclick="openModal('add-class-modal')">+ Nueva Clase</button></div>
@@ -209,7 +209,7 @@
         <div>
           <div class="section-header"><div class="section-title">💰 INGRESOS</div></div>
           <div class="table-wrap">
-            <table><thead><tr><th>Fecha</th><th>Miembro</th><th>Concepto</th><th>Monto</th><th>Método</th></tr></thead>
+            <table><thead><tr><th>Fecha</th><th>Miembro</th><th>Concepto</th><th>Monto</th><th>Método</th><th></th></tr></thead>
             <tbody id="report-payments-tbody"></tbody></table>
           </div>
         </div>
@@ -426,7 +426,7 @@ function renderMembersTable() {
 }
 function renderPaymentsTable() {
   const tbody = document.getElementById('payments-tbody');
-  tbody.innerHTML = [...payments].sort((a,b)=>b.date.localeCompare(a.date)).map(p=>`<tr><td>${formatDate(p.date)}</td><td>${memberName(p.memberId)}</td><td>${p.concept}</td><td style="font-family:'Bebas Neue';font-size:18px;color:var(--gold)">$${p.amount}</td><td>${p.method}</td></tr>`).join('');
+  tbody.innerHTML = [...payments].sort((a,b)=>b.date.localeCompare(a.date)).map(p=>`<tr><td>${formatDate(p.date)}</td><td>${memberName(p.memberId)}</td><td>${p.concept}</td><td style="font-family:'Bebas Neue';font-size:18px;color:var(--gold)">$${p.amount}</td><td>${p.method}</td><td><button class="btn btn-danger btn-sm" onclick="deletePayment(${p.id})">🗑</button></td></tr>`).join('');
 }
 function renderClasses() {
   document.getElementById('classes-grid').innerHTML = [...classes].sort((a,b)=>b.date.localeCompare(a.date)).map(c=>`<div class="class-card"><h3>${c.type}</h3><div class="class-meta">${formatDate(c.date)} · ${c.attendees.length} asistentes</div><div class="class-attendees">${c.attendees.map(id=>`<span class="attendee-tag">${memberName(id)}</span>`).join('')}</div></div>`).join('');
@@ -681,6 +681,16 @@ function sendWhatsApp(id) {
 
   const url = `https://wa.me/${phone}?text=${encodeURIComponent(mensaje)}`;
   window.open(url, '_blank');
+}
+
+// ========= DELETE PAYMENT =========
+async function deletePayment(id) {
+  if (!confirm('¿Eliminar este pago?')) return;
+  const { error } = await sb.from('payments').delete().eq('id', id);
+  if (error) { showToast('✗ ERROR AL ELIMINAR', '#c0392b'); return; }
+  payments = payments.filter(p => p.id !== id);
+  render();
+  showToast('🗑 PAGO ELIMINADO', '#c0392b');
 }
 
 // ========= REPORTS =========
