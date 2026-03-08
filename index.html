@@ -430,7 +430,7 @@ function renderPaymentsTable() {
   tbody.innerHTML = [...payments].sort((a,b)=>b.date.localeCompare(a.date)).map(p=>`<tr><td>${formatDate(p.date)}</td><td>${memberName(p.memberId)}</td><td>${p.concept}</td><td style="font-family:'Bebas Neue';font-size:18px;color:var(--gold)">$${p.amount}</td><td>${p.method}</td><td><button class="btn btn-danger btn-sm" onclick="deletePayment(${p.id})">🗑</button></td></tr>`).join('');
 }
 function renderClasses() {
-  document.getElementById('classes-grid').innerHTML = [...classes].sort((a,b)=>b.date.localeCompare(a.date)).map(c=>`<div class="class-card"><h3>${c.type}</h3><div class="class-meta">${formatDate(c.date)} · ${c.attendees.length} asistentes</div><div class="class-attendees">${c.attendees.map(id=>`<span class="attendee-tag">${memberName(id)}</span>`).join('')}</div></div>`).join('');
+  document.getElementById('classes-grid').innerHTML = [...classes].sort((a,b)=>b.date.localeCompare(a.date)).map(c=>`<div class="class-card"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;"><h3>${c.type}</h3><button class="btn btn-danger btn-sm" onclick="deleteClass(${c.id})">🗑 Borrar</button></div><div class="class-meta">${formatDate(c.date)} · ${c.attendees.length} asistentes</div><div class="class-attendees">${c.attendees.map(id=>`<span class="attendee-tag">${memberName(id)}</span>`).join('')}</div></div>`).join('');
 }
 function renderAlerts() {
   const list = document.getElementById('alerts-list');
@@ -692,6 +692,40 @@ async function deletePayment(id) {
   payments = payments.filter(p => p.id !== id);
   render();
   showToast('🗑 PAGO ELIMINADO', '#c0392b');
+}
+
+// ========= DELETE CLASS =========
+async function deleteClass(id) {
+  if (!confirm('¿Borrar esta clase? También se eliminarán los pagos asociados.')) return;
+  
+  const cls = classes.find(c => c.id === id);
+  if (!cls) return;
+
+  // Delete associated payments for per-class members
+  const perClassAttendees = (cls.attendees || []).filter(aid => {
+    const m = members.find(x => x.id === aid);
+    return m && m.plan === 'perclass';
+  });
+
+  for (const aid of perClassAttendees) {
+    // Find payments on same date for this member with concept 'Clase individual'
+    const relatedPayments = payments.filter(p => 
+      p.memberId === aid && 
+      p.date === cls.date && 
+      p.concept === 'Clase individual'
+    );
+    for (const p of relatedPayments) {
+      await sb.from('payments').delete().eq('id', p.id);
+      payments = payments.filter(x => x.id !== p.id);
+    }
+  }
+
+  // Delete the class
+  const { error } = await sb.from('classes').delete().eq('id', id);
+  if (error) { showToast('✗ ERROR AL ELIMINAR', '#c0392b'); return; }
+  classes = classes.filter(c => c.id !== id);
+  render();
+  showToast('🗑 CLASE Y PAGOS ELIMINADOS', '#c0392b');
 }
 
 // ========= REPORTS =========
