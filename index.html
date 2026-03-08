@@ -140,8 +140,8 @@
   </div>
   <nav class="nav-section">
     <div class="nav-label">Principal</div>
-    <div class="nav-item active" onclick="showPage('dashboard', this)"><span class="nav-icon">📊</span> Dashboard</div>
-    <div class="nav-item" onclick="showPage('members', this)"><span class="nav-icon">🥊</span> Miembros</div>
+    <div class="nav-item" onclick="showPage('dashboard', this)"><span class="nav-icon">📊</span> Dashboard</div>
+    <div class="nav-item active" onclick="showPage('members', this)"><span class="nav-icon">🥊</span> Miembros</div>
     <div class="nav-item" onclick="showPage('payments', this)"><span class="nav-icon">💰</span> Pagos</div>
     <div class="nav-label" style="margin-top:16px;">Clases</div>
     <div class="nav-item" onclick="showPage('classes', this)"><span class="nav-icon">🗓️</span> Asistencia</div>
@@ -157,14 +157,14 @@
 </aside>
 <main class="main">
   <div class="topbar">
-    <div class="page-title" id="page-title">DASHBOARD</div>
+    <div class="page-title" id="page-title">MIEMBROS</div>
     <div class="topbar-actions">
       <input class="search-box" type="text" placeholder="🔍  Buscar miembro..." id="searchInput" oninput="filterMembers()">
       <button class="btn btn-gold" onclick="openModal('add-member-modal')">+ Nuevo Miembro</button>
     </div>
   </div>
   <div class="content">
-    <div class="page active" id="page-dashboard">
+    <div class="page" id="page-dashboard">
       <div class="stats-grid">
         <div class="stat-card success"><div class="stat-icon">🥊</div><div class="stat-value" id="stat-active">0</div><div class="stat-label">Miembros Activos</div></div>
         <div class="stat-card danger"><div class="stat-icon">⚠️</div><div class="stat-value" id="stat-expired">0</div><div class="stat-label">Mensualidades Vencidas</div></div>
@@ -176,7 +176,7 @@
       <div class="section-header"><div class="section-title">✅ PAGOS RECIENTES</div></div>
       <div class="payment-history" id="recent-payments"></div>
     </div>
-    <div class="page" id="page-members">
+    <div class="page active" id="page-members">
       <div class="tab-bar">
         <div class="tab active" onclick="filterByType('all', this)">Todos</div>
         <div class="tab" onclick="filterByType('monthly', this)">Mensual</div>
