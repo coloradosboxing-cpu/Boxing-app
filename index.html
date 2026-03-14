@@ -153,7 +153,7 @@
   <button class="btn btn-outline" style="width:100%;font-size:11px;" onclick="document.getElementById('import-input').click()">⬆ Importar datos</button>
   <input type="file" id="import-input" accept=".json" style="display:none" onchange="importData(event)">
 </div>
-<div class="sidebar-footer">v1.1 · 2025</div>
+<div class="sidebar-footer" style="display:flex;flex-direction:column;gap:6px;"><span>v1.2 · 2026</span><button onclick="logout()" style="background:none;border:1px solid #333;border-radius:6px;padding:4px 10px;color:#888;font-size:11px;font-family:'Oswald',sans-serif;letter-spacing:1px;cursor:pointer;">🔒 Cerrar sesión</button></div>
 </aside>
 <main class="main">
   <div class="topbar">
@@ -185,7 +185,20 @@
       <div class="table-wrap"><table><thead><tr><th>Miembro</th><th>Plan</th><th>Estado</th><th>Vencimiento / Clases</th><th>Días Rest.</th><th>Acciones</th></tr></thead><tbody id="members-tbody"></tbody></table></div>
     </div>
     <div class="page" id="page-payments">
-      <div class="section-header"><div class="section-title">HISTORIAL DE PAGOS</div><button class="btn btn-gold" onclick="openModal('add-payment-modal')">+ Registrar Pago</button></div>
+      <div class="section-header">
+        <div class="section-title">HISTORIAL DE PAGOS</div>
+        <button class="btn btn-gold" onclick="openModal('add-payment-modal')">+ Registrar Pago</button>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
+        <div class="tab-bar" style="margin-bottom:0;">
+          <div class="tab active" onclick="setPaymentFilter('all',this)">Todos</div>
+          <div class="tab" onclick="setPaymentFilter('today',this)">Hoy</div>
+          <div class="tab" onclick="setPaymentFilter('week',this)">Esta semana</div>
+          <div class="tab" onclick="setPaymentFilter('month',this)">Este mes</div>
+        </div>
+        <input type="date" id="pay-filter-date" onchange="setPaymentFilter('date',null)" style="background:#1e1e1e;border:1px solid #333;border-radius:6px;padding:7px 12px;color:#f5f5f0;font-size:13px;outline:none;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:#b8960c;" id="pay-total-display"></div>
+      </div>
       <div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Miembro</th><th>Concepto</th><th>Monto</th><th>Método</th><th></th></tr></thead><tbody id="payments-tbody"></tbody></table></div>
     </div>
     <div class="page" id="page-classes">
@@ -193,7 +206,7 @@
       <div class="class-log-grid" id="classes-grid"></div>
     </div>
     <div class="page" id="page-alerts">
-      <div class="section-header"><div class="section-title">🔔 ALERTAS DEL SISTEMA</div></div>
+      <div class="section-header"><div class="section-title">🔔 ALERTAS DEL SISTEMA</div><button class="btn btn-gold" onclick="sendWhatsAppBulk()">📲 WhatsApp Masivo</button></div>
       <div class="alerts-list" id="alerts-list"></div>
     </div>
   </div>
@@ -290,6 +303,18 @@
   </div>
 </div>
 
+
+<!-- MODAL: HISTORIAL MIEMBRO -->
+<div class="modal-overlay" id="member-history-modal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title" id="history-modal-title">HISTORIAL</div><button class="modal-close" onclick="closeModal('member-history-modal')">✕</button></div>
+    <div class="modal-body">
+      <div id="member-history-content"></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('member-history-modal')">Cerrar</button></div>
+  </div>
+</div>
+
 <!-- MODAL: EDIT MEMBER -->
 <div class="modal-overlay" id="edit-member-modal">
   <div class="modal">
@@ -303,6 +328,10 @@
       <div class="form-row">
         <div class="form-group"><label>Estado</label><select id="edit-status"><option value="active">Activo</option><option value="inactive">Inactivo</option></select></div>
         <div class="form-group"><label>Vencimiento</label><input type="date" id="edit-expiry"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Precio ($)</label><input type="number" id="edit-price" placeholder="80"></div>
+        <div class="form-group"><label>Duración (meses)</label><select id="edit-duration"><option value="1">1 mes</option><option value="3">3 meses</option><option value="6">6 meses</option><option value="12">12 meses</option></select></div>
       </div>
       <div class="form-group"><label>Notas</label><textarea id="edit-notes" rows="2"></textarea></div>
     </div>
@@ -380,9 +409,9 @@ async function dbAddClass(c) {
   if (error) { showToast('✗ ERROR AL GUARDAR CLASE', '#c0392b'); console.error(error); return false; }
   return true;
 }
-function today() { return new Date().toISOString().split('T')[0]; }
-function daysLeft(expiry) { if (!expiry) return null; return Math.ceil((new Date(expiry) - new Date(today())) / 86400000); }
-function addMonths(dateStr, months) { const d = new Date(dateStr); d.setMonth(d.getMonth() + months); return d.toISOString().split('T')[0]; }
+function today() { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function daysLeft(expiry) { if (!expiry) return null; const [y,m,day]=expiry.split('-'); const exp=new Date(y,m-1,day); const now=new Date(); now.setHours(0,0,0,0); return Math.ceil((exp-now)/86400000); }
+function addMonths(dateStr, months) { const [y,m,day]=dateStr.split('-'); const d=new Date(y,m-1,day); d.setMonth(d.getMonth()+months); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 function formatDate(d) { if (!d) return '—'; const [y,m,day] = d.split('-'); return `${day}/${m}/${y}`; }
 function memberName(id) { const m = members.find(x => x.id === id); return m ? m.name : '—'; }
 function getMemberStatus(m) {
@@ -422,7 +451,7 @@ function renderMembersTable() {
     const vencInfo = m.plan==='monthly' ? formatDate(m.expiry) : 'Pago por clase';
     const daysDisplay = m.plan==='monthly'&&dl!==null ? `<span class="days-left ${daysClass(dl)}">${dl<0?'VENCIDO':dl+' días'}</span>` : '—';
     const waBtn = m.phone ? `<button class="btn btn-sm" style="background:#25D366;color:white;" onclick="sendWhatsApp(${m.id})">💬 WA</button>` : '';
-    return `<tr><td><div class="member-name">${m.name}</div><div class="member-id">${m.phone}</div></td><td><span class="badge ${m.plan==='perclass'?'badge-perclass':''}">${m.plan==='monthly'?'📅 Mensual':'🎟 Por Clase'}</span></td><td>${statusBadge(status)}</td><td>${vencInfo}</td><td>${daysDisplay}</td><td><div class="actions-cell"><button class="btn btn-outline btn-sm" onclick="editMember(${m.id})">✏ Editar</button><button class="btn btn-gold btn-sm" onclick="quickPay(${m.id})">💰 Pago</button>${waBtn}<button class="btn btn-danger btn-sm" onclick="deleteMember(${m.id})">🗑</button></div></td></tr>`;
+    return `<tr><td><div class="member-name">${m.name}</div><div class="member-id">${m.phone}</div></td><td><span class="badge ${m.plan==='perclass'?'badge-perclass':''}">${m.plan==='monthly'?'📅 Mensual':'🎟 Por Clase'}</span></td><td>${statusBadge(status)}</td><td>${vencInfo}</td><td>${daysDisplay}</td><td><div class="actions-cell"><button class="btn btn-outline btn-sm" onclick="editMember(${m.id})">✏ Editar</button><button class="btn btn-gold btn-sm" onclick="quickPay(${m.id})">💰 Pago</button>${waBtn}<button class="btn btn-outline btn-sm" onclick="viewMemberHistory(${m.id})" style="border-color:#555;color:#888;">📋</button><button class="btn btn-danger btn-sm" onclick="deleteMember(${m.id})">🗑</button></div></td></tr>`;
   }).join('');
 }
 function renderPaymentsTable() {
@@ -521,7 +550,7 @@ async function addPayment() {
   payments.push(newPayment);
   const m=members.find(x=>x.id===memberId);
   if (concept==='Mensualidad'&&m&&m.plan==='monthly') {
-    const base=m.expiry&&new Date(m.expiry)>new Date()?m.expiry:today();
+    const base=m.expiry&&daysLeft(m.expiry)>=0?m.expiry:today();
     m.expiry=addMonths(base,m.duration||1); m.status='active';
     await dbUpdateMember(m);
   }
@@ -570,10 +599,12 @@ function editMember(id) {
   const m=members.find(x=>x.id===id); if(!m) return;
   document.getElementById('edit-id').value=id;
   document.getElementById('edit-name').value=m.name;
-  document.getElementById('edit-phone').value=m.phone;
+  document.getElementById('edit-phone').value=m.phone||'';
   document.getElementById('edit-status').value=m.status;
   document.getElementById('edit-expiry').value=m.expiry||'';
-  document.getElementById('edit-notes').value=m.notes;
+  document.getElementById('edit-notes').value=m.notes||'';
+  document.getElementById('edit-price').value=m.price||'';
+  document.getElementById('edit-duration').value=m.duration||1;
   openModal('edit-member-modal');
 }
 async function saveEdit() {
@@ -584,6 +615,10 @@ async function saveEdit() {
   m.status=document.getElementById('edit-status').value;
   m.expiry=document.getElementById('edit-expiry').value||null;
   m.notes=document.getElementById('edit-notes').value;
+  const newPrice=parseFloat(document.getElementById('edit-price').value);
+  if(!isNaN(newPrice)) m.price=newPrice;
+  const newDur=parseInt(document.getElementById('edit-duration').value);
+  if(!isNaN(newDur)) m.duration=newDur;
   await dbUpdateMember(m);
   closeModal('edit-member-modal'); render(); showSaveToast();
 }
@@ -594,7 +629,7 @@ function quickPay(id) { openModal('add-payment-modal'); populateMemberSelect(); 
 function exportData() {
   const data = {
     version: '1.1',
-    exportDate: new Date().toISOString().split('T')[0],
+    exportDate: today(),
     members,
     payments,
     classes,
@@ -739,17 +774,19 @@ function setReportPeriod(period, el) {
 }
 
 function getDateRange(period) {
-  const now = new Date();
-  const todayStr = now.toISOString().split('T')[0];
+  const todayStr = today();
   if (period === 'day') {
     return { start: todayStr, end: todayStr };
   } else if (period === 'week') {
+    const now = new Date();
     const day = now.getDay();
     const monday = new Date(now);
     monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1));
-    return { start: monday.toISOString().split('T')[0], end: todayStr };
+    const ms = `${monday.getFullYear()}-${String(monday.getMonth()+1).padStart(2,'0')}-${String(monday.getDate()).padStart(2,'0')}`;
+    return { start: ms, end: todayStr };
   } else {
-    const start = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const now = new Date();
+    const start = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
     return { start, end: todayStr };
   }
 }
@@ -840,7 +877,138 @@ function renderReports() {
   }
 }
 
+
+// ========= PIN ACCESS =========
+const APP_PIN = '1234'; // Cambia este PIN
+function checkPin() {
+  const input = document.getElementById('pin-input-login').value;
+  if (input === APP_PIN) {
+    document.getElementById('pin-overlay').style.display = 'none';
+    sessionStorage.setItem('boxing_auth', '1');
+  } else {
+    document.getElementById('pin-error').textContent = 'PIN incorrecto';
+    document.getElementById('pin-input-login').value = '';
+    setTimeout(() => document.getElementById('pin-error').textContent = '', 2000);
+  }
+}
+function logout() {
+  if (!confirm('¿Cerrar sesión?')) return;
+  sessionStorage.removeItem('boxing_auth');
+  location.reload();
+}
+if (sessionStorage.getItem('boxing_auth') === '1') {
+  document.getElementById('pin-overlay').style.display = 'none';
+}
+
+// ========= PAYMENT FILTER =========
+let paymentFilter = 'all';
+let paymentFilterDate = '';
+
+function setPaymentFilter(type, el) {
+  paymentFilter = type;
+  if (type !== 'date') {
+    document.getElementById('pay-filter-date').value = '';
+    paymentFilterDate = '';
+  }
+  if (el) {
+    document.querySelectorAll('#page-payments .tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+  }
+  renderPaymentsTable();
+}
+
+function renderPaymentsTable() {
+  let filtered = [...payments];
+  const t = today();
+  if (paymentFilter === 'today') {
+    filtered = filtered.filter(p => p.date === t);
+  } else if (paymentFilter === 'week') {
+    const range = getDateRange('week');
+    filtered = filtered.filter(p => p.date >= range.start && p.date <= range.end);
+  } else if (paymentFilter === 'month') {
+    const range = getDateRange('month');
+    filtered = filtered.filter(p => p.date >= range.start && p.date <= range.end);
+  } else if (paymentFilter === 'date') {
+    const selDate = document.getElementById('pay-filter-date').value;
+    if (selDate) filtered = filtered.filter(p => p.date === selDate);
+  }
+  filtered.sort((a,b) => b.date.localeCompare(a.date));
+  const total = filtered.reduce((s,p) => s+(p.amount||0), 0);
+  const disp = document.getElementById('pay-total-display');
+  if (disp) disp.textContent = filtered.length ? `Total: $${total}` : '';
+  const tbody = document.getElementById('payments-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = filtered.length
+    ? filtered.map(p => `<tr><td>${formatDate(p.date)}</td><td>${memberName(p.memberId)}</td><td>${p.concept}</td><td style="font-family:'Bebas Neue';font-size:18px;color:var(--gold)">$${p.amount}</td><td>${p.method}</td><td><button class="btn btn-danger btn-sm" onclick="deletePayment(${p.id})">🗑</button></td></tr>`).join('')
+    : '<tr><td colspan="6" style="text-align:center;color:var(--gray-light);padding:20px;">Sin pagos en este período</td></tr>';
+}
+
+// ========= MEMBER HISTORY =========
+function viewMemberHistory(id) {
+  const m = members.find(x => x.id === id);
+  if (!m) return;
+  const mPayments = payments.filter(p => p.memberId === id).sort((a,b) => b.date.localeCompare(a.date));
+  const mClasses = classes.filter(c => c.attendees && c.attendees.includes(id)).sort((a,b) => b.date.localeCompare(a.date));
+  const total = mPayments.reduce((s,p) => s+(p.amount||0), 0);
+  document.getElementById('history-modal-title').textContent = m.name.toUpperCase();
+  document.getElementById('member-history-content').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:20px;">
+      <div style="background:var(--dark3);border-radius:8px;padding:14px;text-align:center;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--gold);">${mPayments.length}</div>
+        <div style="font-size:11px;color:var(--gray-light);letter-spacing:1px;">PAGOS</div>
+      </div>
+      <div style="background:var(--dark3);border-radius:8px;padding:14px;text-align:center;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--gold);">$${total}</div>
+        <div style="font-size:11px;color:var(--gray-light);letter-spacing:1px;">TOTAL</div>
+      </div>
+      <div style="background:var(--dark3);border-radius:8px;padding:14px;text-align:center;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--gold);">${mClasses.length}</div>
+        <div style="font-size:11px;color:var(--gray-light);letter-spacing:1px;">CLASES</div>
+      </div>
+    </div>
+    <div style="font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:2px;color:var(--gold);margin-bottom:10px;">PAGOS</div>
+    ${mPayments.length ? mPayments.map(p => `
+      <div style="display:flex;justify-content:space-between;align-items:center;background:var(--dark3);border-radius:6px;padding:10px 14px;margin-bottom:6px;">
+        <div><div style="font-size:13px;font-weight:600;">${p.concept}</div><div style="font-size:11px;color:var(--gray-light);">${formatDate(p.date)} · ${p.method}</div></div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--gold);">$${p.amount}</div>
+      </div>`).join('') : '<div style="color:var(--gray-light);font-size:13px;text-align:center;padding:12px;">Sin pagos registrados</div>'}
+    <div style="font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:2px;color:var(--gold);margin:14px 0 10px;">CLASES ASISTIDAS</div>
+    ${mClasses.length ? mClasses.map(c => `
+      <div style="display:flex;justify-content:space-between;background:var(--dark3);border-radius:6px;padding:10px 14px;margin-bottom:6px;">
+        <div style="font-size:13px;font-weight:600;">${c.type}</div>
+        <div style="font-size:12px;color:var(--gray-light);">${formatDate(c.date)}</div>
+      </div>`).join('') : '<div style="color:var(--gray-light);font-size:13px;text-align:center;padding:12px;">Sin clases registradas</div>'}
+  `;
+  openModal('member-history-modal');
+}
+
+// ========= WHATSAPP MASIVO =========
+function sendWhatsAppBulk() {
+  const expired = members.filter(m => getMemberStatus(m) === 'expired' || getMemberStatus(m) === 'expiring');
+  if (!expired.length) { showToast('✓ Sin vencimientos pendientes', '#27ae60'); return; }
+  const withPhone = expired.filter(m => m.phone);
+  if (!withPhone.length) { showToast('✗ Ningún miembro tiene teléfono', '#c0392b'); return; }
+  if (!confirm(`¿Enviar recordatorio por WhatsApp a ${withPhone.length} miembro(s)?`)) return;
+  withPhone.forEach((m, i) => setTimeout(() => sendWhatsApp(m.id), i * 800));
+  showToast(`📲 Enviando a ${withPhone.length} miembros...`, '#b8960c');
+}
+
 loadData();
 </script>
+
+<!-- PIN LOGIN -->
+<div id="pin-overlay" style="position:fixed;inset:0;background:#0d0d0d;z-index:99999;display:flex;align-items:center;justify-content:center;">
+  <div style="background:#141414;border:1px solid #2a2a2a;border-radius:16px;padding:40px;width:340px;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.8);">
+    <img src="https://coloradosboxing-cpu.github.io/Boxing-app/logo.png" style="width:80px;height:80px;object-fit:contain;margin-bottom:16px;filter:drop-shadow(0 0 12px rgba(184,150,12,0.4));">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:3px;color:#b8960c;margin-bottom:24px;">COLORADO'S BOXING CLUB</div>
+    <div style="font-family:'Oswald',sans-serif;font-size:14px;letter-spacing:2px;color:#888;margin-bottom:16px;">INGRESA TU PIN</div>
+    <input id="pin-input-login" type="password" inputmode="numeric" maxlength="6" placeholder="••••••"
+      style="width:100%;background:#1e1e1e;border:1px solid #333;border-radius:8px;padding:14px;color:#f5f5f0;font-size:24px;text-align:center;letter-spacing:8px;outline:none;margin-bottom:8px;font-family:'Barlow',sans-serif;"
+      onkeydown="if(event.key==='Enter')checkPin()">
+    <div id="pin-error" style="color:#e74c3c;font-size:12px;font-family:'Oswald',sans-serif;letter-spacing:1px;min-height:18px;margin-bottom:12px;"></div>
+    <button onclick="checkPin()" style="width:100%;padding:12px;background:#b8960c;border:none;border-radius:8px;color:#000;font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;cursor:pointer;">ENTRAR</button>
+  </div>
+</div>
+
 </body>
 </html>
