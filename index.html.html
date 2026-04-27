@@ -1,0 +1,1234 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Colorado's Boxing Club</title>
+<link rel="apple-touch-icon" href="https://coloradosboxing-cpu.github.io/Boxing-app/logo.png">
+<link rel="icon" type="image/png" href="https://coloradosboxing-cpu.github.io/Boxing-app/logo.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Colorado's Boxing">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Oswald:wght@300;400;500;600;700&family=Barlow:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --gold: #b8960c;
+    --gold-light: #d4af37;
+    --gold-dark: #8a6f09;
+    --black: #0d0d0d;
+    --dark: #141414;
+    --dark2: #1e1e1e;
+    --dark3: #2a2a2a;
+    --gray: #555;
+    --gray-light: #888;
+    --white: #f5f5f0;
+    --danger: #c0392b;
+    --warning: #e67e22;
+    --success: #27ae60;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Barlow', sans-serif; background: var(--black); color: var(--white); min-height: 100vh; display: flex; }
+  .sidebar { width: 240px; min-height: 100vh; background: var(--dark); border-right: 1px solid #222; display: flex; flex-direction: column; position: fixed; top: 0; left: 0; z-index: 100; }
+  .sidebar-logo { padding: 24px 20px; border-bottom: 1px solid #222; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .sidebar-logo img { width: 80px; height: 80px; object-fit: contain; filter: drop-shadow(0 0 12px rgba(184,150,12,0.4)); }
+  .sidebar-logo .gym-name { font-family: 'Bebas Neue', sans-serif; font-size: 13px; letter-spacing: 3px; color: var(--gold); text-align: center; line-height: 1.2; }
+  .nav-section { padding: 20px 0; flex: 1; }
+  .nav-label { font-size: 10px; letter-spacing: 2px; color: var(--gray); padding: 0 20px 8px; text-transform: uppercase; }
+  .nav-item { display: flex; align-items: center; gap: 12px; padding: 12px 20px; cursor: pointer; transition: all 0.2s; border-left: 3px solid transparent; color: var(--gray-light); font-size: 14px; font-weight: 500; }
+  .nav-item:hover { background: var(--dark2); color: var(--white); }
+  .nav-item.active { background: linear-gradient(90deg, rgba(184,150,12,0.15), transparent); border-left-color: var(--gold); color: var(--gold); }
+  .nav-icon { font-size: 18px; width: 22px; text-align: center; }
+  .sidebar-footer { padding: 16px 20px; border-top: 1px solid #222; font-size: 11px; color: var(--gray); text-align: center; }
+  .main { margin-left: 240px; flex: 1; display: flex; flex-direction: column; min-height: 100vh; }
+  .topbar { background: var(--dark); border-bottom: 1px solid #222; padding: 16px 32px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 50; }
+  .page-title { font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: 3px; color: var(--white); }
+  .topbar-actions { display: flex; gap: 12px; align-items: center; }
+  .search-box { background: var(--dark2); border: 1px solid #333; border-radius: 6px; padding: 8px 14px; color: var(--white); font-family: 'Barlow', sans-serif; font-size: 13px; width: 220px; outline: none; transition: border-color 0.2s; }
+  .search-box:focus { border-color: var(--gold); }
+  .search-box::placeholder { color: var(--gray); }
+  .btn { padding: 9px 18px; border-radius: 6px; font-family: 'Oswald', sans-serif; font-size: 13px; letter-spacing: 1px; cursor: pointer; border: none; transition: all 0.2s; font-weight: 500; }
+  .btn-gold { background: var(--gold); color: var(--black); }
+  .btn-gold:hover { background: var(--gold-light); transform: translateY(-1px); }
+  .btn-outline { background: transparent; color: var(--gold); border: 1px solid var(--gold); }
+  .btn-outline:hover { background: rgba(184,150,12,0.1); }
+  .btn-danger { background: var(--danger); color: white; }
+  .btn-danger:hover { background: #e74c3c; }
+  .btn-sm { padding: 5px 12px; font-size: 11px; }
+  .content { padding: 28px 32px; flex: 1; }
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 28px; }
+  .stat-card { background: var(--dark2); border: 1px solid #2a2a2a; border-radius: 10px; padding: 20px; position: relative; overflow: hidden; }
+  .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--gold); }
+  .stat-card .stat-icon { font-size: 28px; margin-bottom: 10px; }
+  .stat-card .stat-value { font-family: 'Bebas Neue', sans-serif; font-size: 36px; color: var(--white); line-height: 1; margin-bottom: 4px; }
+  .stat-card .stat-label { font-size: 11px; letter-spacing: 2px; color: var(--gray-light); text-transform: uppercase; }
+  .stat-card.danger::before { background: var(--danger); }
+  .stat-card.warning::before { background: var(--warning); }
+  .stat-card.success::before { background: var(--success); }
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .section-title { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 2px; color: var(--gold); }
+  .table-wrap { background: var(--dark2); border: 1px solid #2a2a2a; border-radius: 10px; overflow: hidden; margin-bottom: 28px; }
+  table { width: 100%; border-collapse: collapse; }
+  thead { background: var(--dark3); border-bottom: 1px solid #333; }
+  th { padding: 12px 16px; text-align: left; font-family: 'Oswald', sans-serif; font-size: 11px; letter-spacing: 2px; color: var(--gray-light); text-transform: uppercase; font-weight: 500; }
+  td { padding: 13px 16px; font-size: 14px; border-bottom: 1px solid #222; color: var(--white); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+  .member-name { font-weight: 600; font-size: 14px; }
+  .member-id { font-size: 11px; color: var(--gray-light); font-family: monospace; }
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; font-family: 'Oswald', sans-serif; }
+  .badge-active { background: rgba(39,174,96,0.2); color: #2ecc71; }
+  .badge-expired { background: rgba(192,57,43,0.2); color: #e74c3c; }
+  .badge-warning { background: rgba(230,126,34,0.2); color: #f39c12; }
+  .badge-perclass { background: rgba(184,150,12,0.2); color: var(--gold-light); }
+  .days-left { font-family: 'Oswald', sans-serif; font-size: 15px; font-weight: 600; }
+  .days-red { color: var(--danger); }
+  .days-orange { color: var(--warning); }
+  .days-green { color: var(--success); }
+  .actions-cell { display: flex; gap: 6px; }
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--dark2); border: 1px solid #333; border-radius: 14px; width: 520px; max-width: 95vw; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.8); animation: slideUp 0.25s ease; }
+  @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  .modal-header { padding: 24px 28px 16px; border-bottom: 1px solid #333; display: flex; align-items: center; justify-content: space-between; }
+  .modal-title { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 2px; color: var(--gold); }
+  .modal-close { background: none; border: none; color: var(--gray-light); font-size: 22px; cursor: pointer; transition: color 0.2s; line-height: 1; }
+  .modal-close:hover { color: var(--white); }
+  .modal-body { padding: 24px 28px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .form-group { margin-bottom: 16px; }
+  .form-group:last-child { margin-bottom: 0; }
+  label { display: block; font-size: 11px; letter-spacing: 1.5px; color: var(--gray-light); text-transform: uppercase; margin-bottom: 6px; font-family: 'Oswald', sans-serif; }
+  input, select, textarea { width: 100%; background: var(--dark3); border: 1px solid #333; border-radius: 6px; padding: 10px 14px; color: var(--white); font-family: 'Barlow', sans-serif; font-size: 14px; outline: none; transition: border-color 0.2s; }
+  input:focus, select:focus, textarea:focus { border-color: var(--gold); }
+  select option { background: var(--dark3); }
+  .modal-footer { padding: 16px 28px 24px; display: flex; gap: 10px; justify-content: flex-end; }
+  .page { display: none; }
+  .page.active { display: block; }
+  .class-log-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .class-card { background: var(--dark2); border: 1px solid #2a2a2a; border-radius: 10px; padding: 20px; border-left: 3px solid var(--gold); }
+  .class-card h3 { font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 2px; color: var(--white); margin-bottom: 4px; }
+  .class-card .class-meta { font-size: 12px; color: var(--gray-light); margin-bottom: 12px; }
+  .class-attendees { display: flex; flex-wrap: wrap; gap: 6px; }
+  .attendee-tag { background: var(--dark3); padding: 4px 10px; border-radius: 4px; font-size: 12px; color: var(--gold-light); font-weight: 500; }
+  .alerts-list { display: flex; flex-direction: column; gap: 10px; }
+  .alert-item { background: var(--dark2); border: 1px solid #2a2a2a; border-radius: 8px; padding: 14px 18px; display: flex; align-items: center; gap: 14px; border-left: 3px solid var(--warning); }
+  .alert-item.danger { border-left-color: var(--danger); }
+  .alert-icon { font-size: 20px; }
+  .alert-text { flex: 1; }
+  .alert-text strong { display: block; font-size: 14px; color: var(--white); }
+  .alert-text span { font-size: 12px; color: var(--gray-light); }
+  .payment-history { display: flex; flex-direction: column; gap: 8px; }
+  .payment-row { background: var(--dark3); border-radius: 8px; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; }
+  .payment-row .pay-info strong { font-size: 14px; }
+  .payment-row .pay-info span { font-size: 12px; color: var(--gray-light); display: block; }
+  .payment-amount { font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: var(--gold); }
+  .tab-bar { display: flex; gap: 0; background: var(--dark2); border: 1px solid #2a2a2a; border-radius: 8px; padding: 4px; margin-bottom: 20px; width: fit-content; }
+  .tab { padding: 8px 20px; font-family: 'Oswald', sans-serif; font-size: 13px; letter-spacing: 1px; color: var(--gray-light); cursor: pointer; border-radius: 6px; transition: all 0.2s; }
+  .tab.active { background: var(--gold); color: var(--black); }
+  .progress-bar { height: 5px; background: #333; border-radius: 3px; overflow: hidden; margin-top: 8px; }
+  .progress-fill { height: 100%; background: var(--gold); border-radius: 3px; transition: width 0.5s; }
+  .progress-fill.danger { background: var(--danger); }
+  .progress-fill.warning { background: var(--warning); }
+</style>
+</head>
+<body>
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <img src="https://coloradosboxing-cpu.github.io/Boxing-app/logo.png" alt="Colorado's Boxing Club">
+    <div class="gym-name">COLORADO'S<br>BOXING CLUB</div>
+  </div>
+  <nav class="nav-section">
+    <div class="nav-label">Principal</div>
+    <div class="nav-item" onclick="showPage('dashboard', this)"><span class="nav-icon">📊</span> Dashboard</div>
+    <div class="nav-item active" onclick="showPage('members', this)"><span class="nav-icon">🥊</span> Miembros</div>
+    <div class="nav-item" onclick="showPage('payments', this)"><span class="nav-icon">💰</span> Pagos</div>
+    <div class="nav-label" style="margin-top:16px;">Clases</div>
+    <div class="nav-item" onclick="showPage('classes', this)"><span class="nav-icon">🗓️</span> Asistencia</div>
+    <div class="nav-item" onclick="showPage('alerts', this)"><span class="nav-icon">🔔</span> Alertas</div>
+    <div class="nav-item" onclick="showPage('reports', this)"><span class="nav-icon">📈</span> Reportes</div>
+    <div class="nav-item" onclick="showPage('expenses', this)"><span class="nav-icon">💸</span> Gastos</div>
+  </nav>
+  <div style="padding:12px 16px;border-top:1px solid #222;display:flex;flex-direction:column;gap:8px;">
+  <button class="btn btn-outline" style="width:100%;font-size:11px;" onclick="exportData()">⬇ Exportar datos</button>
+  <button class="btn btn-outline" style="width:100%;font-size:11px;" onclick="document.getElementById('import-input').click()">⬆ Importar datos</button>
+  <input type="file" id="import-input" accept=".json" style="display:none" onchange="importData(event)">
+</div>
+<div class="sidebar-footer" style="display:flex;flex-direction:column;gap:6px;"><span>v1.2 · 2026</span><button onclick="logout()" style="background:none;border:1px solid #333;border-radius:6px;padding:4px 10px;color:#888;font-size:11px;font-family:'Oswald',sans-serif;letter-spacing:1px;cursor:pointer;">🔒 Cerrar sesión</button></div>
+</aside>
+<main class="main">
+  <div class="topbar">
+    <div class="page-title" id="page-title">MIEMBROS</div>
+    <div class="topbar-actions">
+      <input class="search-box" type="text" placeholder="🔍  Buscar miembro..." id="searchInput" oninput="filterMembers()">
+      <button class="btn btn-gold" onclick="openModal('add-member-modal')">+ Nuevo Miembro</button>
+    </div>
+  </div>
+  <div class="content">
+    <div class="page" id="page-dashboard">
+      <div class="stats-grid">
+        <div class="stat-card success"><div class="stat-icon">🥊</div><div class="stat-value" id="stat-active">0</div><div class="stat-label">Miembros Activos</div></div>
+        <div class="stat-card danger"><div class="stat-icon">⚠️</div><div class="stat-value" id="stat-expired">0</div><div class="stat-label">Mensualidades Vencidas</div></div>
+        <div class="stat-card warning"><div class="stat-icon">⏳</div><div class="stat-value" id="stat-expiring">0</div><div class="stat-label">Vencen en 7 días</div></div>
+        <div class="stat-card"><div class="stat-icon">💵</div><div class="stat-value" id="stat-revenue">$0</div><div class="stat-label">Ingresos del Mes</div></div>
+      </div>
+      <div class="section-header"><div class="section-title">⚠ VENCIMIENTOS PRÓXIMOS</div></div>
+      <div class="table-wrap" style="margin-bottom:28px;"><table><thead><tr><th>Miembro</th><th>Tipo</th><th>Vence</th><th>Días Restantes</th><th>Acción</th></tr></thead><tbody id="expiring-tbody"></tbody></table></div>
+      <div class="section-header"><div class="section-title">✅ PAGOS RECIENTES</div></div>
+      <div class="payment-history" id="recent-payments"></div>
+    </div>
+    <div class="page active" id="page-members">
+      <div class="tab-bar">
+        <div class="tab active" onclick="filterByType('all', this)">Todos</div>
+        <div class="tab" onclick="filterByType('monthly', this)">Mensual</div>
+        <div class="tab" onclick="filterByType('perclass', this)">Por Clase</div>
+      </div>
+      <div class="table-wrap"><table><thead><tr><th>Miembro</th><th>Plan</th><th>Estado</th><th>Vencimiento / Clases</th><th>Días Rest.</th><th>Acciones</th></tr></thead><tbody id="members-tbody"></tbody></table></div>
+    </div>
+    <div class="page" id="page-payments">
+      <div class="section-header">
+        <div class="section-title">HISTORIAL DE PAGOS</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <select id="month-selector" onchange="setPaymentFilter('month-sel',null)" style="background:#1e1e1e;border:1px solid #333;border-radius:6px;padding:7px 12px;color:#f5f5f0;font-size:13px;outline:none;cursor:pointer;"></select>
+          <button class="btn btn-gold" onclick="openModal('add-payment-modal')">+ Registrar Pago</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
+        <div class="tab-bar" style="margin-bottom:0;">
+          <div class="tab active" onclick="setPaymentFilter('all',this)">Todos</div>
+          <div class="tab" onclick="setPaymentFilter('today',this)">Hoy</div>
+          <div class="tab" onclick="setPaymentFilter('week',this)">Esta semana</div>
+          <div class="tab" onclick="setPaymentFilter('month',this)">Este mes</div>
+          <div class="tab" onclick="setPaymentFilter('prevmonth',this)">Mes anterior</div>
+        </div>
+        <input type="date" id="pay-filter-date" onchange="setPaymentFilter('date',null)" style="background:#1e1e1e;border:1px solid #333;border-radius:6px;padding:7px 12px;color:#f5f5f0;font-size:13px;outline:none;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:#b8960c;" id="pay-total-display"></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+        <div class="tab-bar" style="margin-bottom:0;">
+          <div class="tab active" onclick="setConceptFilter('all',this)">Todos los conceptos</div>
+          <div class="tab" onclick="setConceptFilter('Mensualidad',this)">📅 Mensualidad</div>
+          <div class="tab" onclick="setConceptFilter('Clase individual',this)">🎟 Por Clase</div>
+          <div class="tab" onclick="setConceptFilter('other',this)">Otros</div>
+        </div>
+      </div>
+      <div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Miembro</th><th>Concepto</th><th>Monto</th><th>Método</th><th></th></tr></thead><tbody id="payments-tbody"></tbody></table></div>
+    </div>
+    <div class="page" id="page-classes">
+      <div class="section-header"><div class="section-title">REGISTRO DE ASISTENCIA</div><button class="btn btn-gold" onclick="openModal('add-class-modal')">+ Nueva Clase</button></div>
+      <div class="class-log-grid" id="classes-grid"></div>
+    </div>
+    <div class="page" id="page-alerts">
+      <div class="section-header"><div class="section-title">🔔 ALERTAS DEL SISTEMA</div><button class="btn btn-gold" onclick="sendWhatsAppBulk()">📲 WhatsApp Masivo</button></div>
+      <div class="alerts-list" id="alerts-list"></div>
+    </div>
+  </div>
+
+    <div class="page" id="page-reports">
+      <div class="tab-bar" style="margin-bottom:20px;">
+        <div class="tab active" onclick="setReportPeriod('day', this)">Hoy</div>
+        <div class="tab" onclick="setReportPeriod('week', this)">Esta Semana</div>
+        <div class="tab" onclick="setReportPeriod('month', this)">Este Mes</div>
+      </div>
+      <div class="stats-grid" id="report-stats"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+        <div>
+          <div class="section-header"><div class="section-title">💰 INGRESOS</div></div>
+          <div class="table-wrap">
+            <table><thead><tr><th>Fecha</th><th>Miembro</th><th>Concepto</th><th>Monto</th><th>Método</th><th></th></tr></thead>
+            <tbody id="report-payments-tbody"></tbody></table>
+          </div>
+        </div>
+        <div>
+          <div class="section-header"><div class="section-title">🥊 ASISTENCIA</div></div>
+          <div class="table-wrap">
+            <table><thead><tr><th>Fecha</th><th>Clase</th><th>Asistentes</th></tr></thead>
+            <tbody id="report-classes-tbody"></tbody></table>
+          </div>
+          <div class="section-header" style="margin-top:20px;"><div class="section-title">🆕 MIEMBROS NUEVOS</div></div>
+          <div class="table-wrap">
+            <table><thead><tr><th>Fecha</th><th>Miembro</th><th>Plan</th></tr></thead>
+            <tbody id="report-members-tbody"></tbody></table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- GASTOS PAGE -->
+    <div class="page" id="page-expenses">
+      <div class="section-header">
+        <div class="section-title">💸 GASTOS</div>
+        <button class="btn btn-gold" onclick="openModal('add-expense-modal')">+ Registrar Gasto</button>
+      </div>
+      <!-- Resumen Ingresos vs Gastos -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px;" id="expense-summary"></div>
+      <!-- Filtro mes gastos -->
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap;">
+        <div class="tab-bar" style="margin-bottom:0;">
+          <div class="tab active" onclick="setExpenseFilter('month',this)">Este mes</div>
+          <div class="tab" onclick="setExpenseFilter('prevmonth',this)">Mes anterior</div>
+          <div class="tab" onclick="setExpenseFilter('all',this)">Todos</div>
+        </div>
+        <select id="expense-month-selector" onchange="setExpenseFilter('month-sel',null)" style="background:#1e1e1e;border:1px solid #333;border-radius:6px;padding:7px 12px;color:#f5f5f0;font-size:13px;outline:none;cursor:pointer;"></select>
+      </div>
+      <div class="table-wrap">
+        <table><thead><tr><th>Fecha</th><th>Categoría</th><th>Descripción</th><th>Monto</th><th></th></tr></thead>
+        <tbody id="expenses-tbody"></tbody></table>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- MODAL: ADD EXPENSE -->
+<div class="modal-overlay" id="add-expense-modal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">REGISTRAR GASTO</div><button class="modal-close" onclick="closeModal('add-expense-modal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>Categoría</label>
+          <select id="exp-category">
+            <option value="Renta">🏠 Renta</option>
+            <option value="Equipamiento">🥊 Equipamiento</option>
+            <option value="Salarios">👤 Salarios</option>
+            <option value="Servicios">💡 Servicios (luz, agua, internet)</option>
+            <option value="Otros">📦 Otros</option>
+          </select>
+        </div>
+        <div class="form-group"><label>Monto ($)</label><input type="number" id="exp-amount" placeholder="0"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Fecha</label><input type="date" id="exp-date"></div>
+        <div class="form-group"><label>Método de Pago</label>
+          <select id="exp-method"><option>Efectivo</option><option>Tarjeta</option><option>Transferencia</option></select>
+        </div>
+      </div>
+      <div class="form-group"><label>Descripción</label><textarea id="exp-description" rows="2" placeholder="Detalles del gasto..."></textarea></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('add-expense-modal')">Cancelar</button><button class="btn btn-gold" onclick="addExpense()">Guardar Gasto</button></div>
+  </div>
+</div>
+
+<!-- MODAL: ADD MEMBER -->
+<div class="modal-overlay" id="add-member-modal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">NUEVO MIEMBRO</div><button class="modal-close" onclick="closeModal('add-member-modal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>Nombre</label><input type="text" id="new-name" placeholder="Juan Pérez"></div>
+        <div class="form-group"><label>Teléfono</label><input type="text" id="new-phone" placeholder="+1 555-0000"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Plan</label><select id="new-plan" onchange="togglePlanFields()"><option value="monthly">Mensualidad</option><option value="perclass">Por Clase</option></select></div>
+        <div class="form-group"><label>Precio ($)</label><input type="number" id="new-price" placeholder="80"></div>
+      </div>
+      <div id="monthly-fields">
+        <div class="form-row">
+          <div class="form-group"><label>Fecha de Inicio</label><input type="date" id="new-start"></div>
+          <div class="form-group"><label>Duración (meses)</label><select id="new-duration"><option value="1">1 mes</option><option value="3">3 meses</option><option value="6">6 meses</option><option value="12">12 meses</option></select></div>
+        </div>
+      </div>
+      <div id="perclass-fields" style="display:none;"></div>
+      <div class="form-group"><label>Notas</label><textarea id="new-notes" rows="2" placeholder="Información adicional..."></textarea></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('add-member-modal')">Cancelar</button><button class="btn btn-gold" onclick="addMember()">Registrar</button></div>
+  </div>
+</div>
+
+<!-- MODAL: ADD PAYMENT -->
+<div class="modal-overlay" id="add-payment-modal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">REGISTRAR PAGO</div><button class="modal-close" onclick="closeModal('add-payment-modal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-group"><label>Miembro</label><select id="pay-member"></select></div>
+      <div class="form-row">
+        <div class="form-group"><label>Concepto</label><select id="pay-concept"><option value="Mensualidad">Mensualidad</option><option value="Clase individual">Clase individual</option><option value="Pack de clases">Pack de clases</option><option value="Inscripción">Inscripción</option><option value="Equipamiento">Equipamiento</option></select></div>
+        <div class="form-group"><label>Monto ($)</label><input type="number" id="pay-amount" placeholder="80"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Método de Pago</label><select id="pay-method"><option>Efectivo</option><option>Tarjeta</option><option>Transferencia</option><option>Zelle</option><option>Venmo</option></select></div>
+        <div class="form-group"><label>Fecha</label><input type="date" id="pay-date"></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('add-payment-modal')">Cancelar</button><button class="btn btn-gold" onclick="addPayment()">Guardar Pago</button></div>
+  </div>
+</div>
+
+<!-- MODAL: ADD CLASS -->
+<div class="modal-overlay" id="add-class-modal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">REGISTRAR CLASE</div><button class="modal-close" onclick="closeModal('add-class-modal')">✕</button></div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-group"><label>Tipo de Clase</label><select id="class-type"><option>Box Técnico</option><option>Sparring</option><option>Cardio Box</option><option>Fundamentos</option><option>Avanzado</option><option>1 a 1 (Personal)</option></select></div>
+        <div class="form-group"><label>Fecha</label><input type="date" id="class-date"></div>
+      </div>
+      <div class="form-group"><label>Asistentes</label><div id="class-attendees-list" style="display:flex;flex-wrap:wrap;gap:8px;background:var(--dark3);padding:12px;border-radius:8px;border:1px solid #333;max-height:180px;overflow-y:auto;"></div></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('add-class-modal')">Cancelar</button><button class="btn btn-gold" onclick="saveClass()">Guardar Clase</button></div>
+  </div>
+</div>
+
+
+<!-- MODAL: HISTORIAL MIEMBRO -->
+<div class="modal-overlay" id="member-history-modal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title" id="history-modal-title">HISTORIAL</div><button class="modal-close" onclick="closeModal('member-history-modal')">✕</button></div>
+    <div class="modal-body">
+      <div id="member-history-content"></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('member-history-modal')">Cerrar</button></div>
+  </div>
+</div>
+
+<!-- MODAL: EDIT MEMBER -->
+<div class="modal-overlay" id="edit-member-modal">
+  <div class="modal">
+    <div class="modal-header"><div class="modal-title">EDITAR MIEMBRO</div><button class="modal-close" onclick="closeModal('edit-member-modal')">✕</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="edit-id">
+      <div class="form-row">
+        <div class="form-group"><label>Nombre</label><input type="text" id="edit-name"></div>
+        <div class="form-group"><label>Teléfono</label><input type="text" id="edit-phone"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Estado</label><select id="edit-status"><option value="active">Activo</option><option value="inactive">Inactivo</option></select></div>
+        <div class="form-group"><label>Vencimiento</label><input type="date" id="edit-expiry"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Precio ($)</label><input type="number" id="edit-price" placeholder="80"></div>
+        <div class="form-group"><label>Duración (meses)</label><select id="edit-duration"><option value="1">1 mes</option><option value="3">3 meses</option><option value="6">6 meses</option><option value="12">12 meses</option></select></div>
+      </div>
+      <div class="form-group"><label>Notas</label><textarea id="edit-notes" rows="2"></textarea></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-outline" onclick="closeModal('edit-member-modal')">Cancelar</button><button class="btn btn-gold" onclick="saveEdit()">Guardar</button></div>
+  </div>
+</div>
+
+<script>
+// ========= SUPABASE CONFIG =========
+const SUPABASE_URL = 'https://btdtpruxntodjuzomdcq.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_NA4niv3lN1R5OUkwJH8ihA_d547f1h4';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+let members = [];
+let payments = [];
+let classes = [];
+let currentFilter = 'all';
+let nextId = 100;
+
+function showSaveToast() { showToast('✓ GUARDADO', '#27ae60'); }
+
+// ========= LOAD FROM SUPABASE =========
+async function loadData() {
+  showToast('⏳ CARGANDO...', '#b8960c');
+  try {
+    const [mRes, pRes, cRes, eRes] = await Promise.all([
+      sb.from('members').select('*').order('id'),
+      sb.from('payments').select('*').order('date', {ascending: false}),
+      sb.from('classes').select('*').order('date', {ascending: false}),
+      sb.from('expenses').select('*').order('date', {ascending: false}),
+    ]);
+    members = mRes.data || [];
+    payments = pRes.data || [];
+    classes = cRes.data || [];
+    expenses = eRes.data || [];
+    if (members.length > 0) nextId = Math.max(...members.map(m => m.id)) + 1;
+    render();
+    showToast('✓ DATOS CARGADOS', '#27ae60');
+  } catch(e) {
+    showToast('✗ ERROR DE CONEXIÓN', '#c0392b');
+    console.error(e);
+  }
+}
+
+// ========= SAVE TO SUPABASE =========
+async function saveData() {
+  // No-op: individual operations handle their own saves
+  showSaveToast();
+}
+
+async function dbAddMember(m) {
+  const { error } = await sb.from('members').insert([m]);
+  if (error) { showToast('✗ ERROR AL GUARDAR', '#c0392b'); console.error(error); return false; }
+  return true;
+}
+
+async function dbUpdateMember(m) {
+  const { error } = await sb.from('members').update(m).eq('id', m.id);
+  if (error) { showToast('✗ ERROR AL ACTUALIZAR', '#c0392b'); console.error(error); return false; }
+  return true;
+}
+
+async function dbDeleteMember(id) {
+  const { error } = await sb.from('members').delete().eq('id', id);
+  if (error) { showToast('✗ ERROR AL ELIMINAR', '#c0392b'); console.error(error); return false; }
+  return true;
+}
+
+async function dbAddPayment(p) {
+  const { error } = await sb.from('payments').insert([p]);
+  if (error) { showToast('✗ ERROR AL GUARDAR PAGO', '#c0392b'); console.error(error); return false; }
+  return true;
+}
+
+async function dbAddClass(c) {
+  const { error } = await sb.from('classes').insert([c]);
+  if (error) { showToast('✗ ERROR AL GUARDAR CLASE', '#c0392b'); console.error(error); return false; }
+  return true;
+}
+function today() { const d=new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function daysLeft(expiry) { if (!expiry) return null; const [y,m,day]=expiry.split('-'); const exp=new Date(y,m-1,day); const now=new Date(); now.setHours(0,0,0,0); return Math.ceil((exp-now)/86400000); }
+function addMonths(dateStr, months) { const [y,m,day]=dateStr.split('-'); const d=new Date(y,m-1,day); d.setMonth(d.getMonth()+months); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function formatDate(d) { if (!d) return '—'; const [y,m,day] = d.split('-'); return `${day}/${m}/${y}`; }
+function memberName(id) { const m = members.find(x => x.id === id); return m ? m.name : '—'; }
+function getMemberStatus(m) {
+  if (m.plan === 'perclass') return 'active';
+  const dl = daysLeft(m.expiry);
+  if (dl === null) return m.status;
+  if (dl < 0) return 'expired';
+  if (dl <= 7) return 'expiring';
+  return 'active';
+}
+function render() { renderStats(); renderMembersTable(); renderPaymentsTable(); renderClasses(); renderAlerts(); renderDashboardExpiring(); renderRecentPayments(); }
+function renderStats() {
+  const active = members.filter(m => getMemberStatus(m) === 'active').length;
+  const expired = members.filter(m => getMemberStatus(m) === 'expired').length;
+  const expiring = members.filter(m => getMemberStatus(m) === 'expiring').length;
+  const now = new Date();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const revenue = payments.filter(p => p.date && p.date.startsWith(currentMonth)).reduce((s,p) => s+p.amount, 0);
+  document.getElementById('stat-active').textContent = active;
+  document.getElementById('stat-expired').textContent = expired;
+  document.getElementById('stat-expiring').textContent = expiring;
+  document.getElementById('stat-revenue').textContent = '$'+revenue;
+}
+function daysClass(days) { if (days===null) return ''; if (days<0) return 'days-red'; if (days<=7) return 'days-orange'; return 'days-green'; }
+function statusBadge(status) {
+  if (status==='active') return '<span class="badge badge-active">ACTIVO</span>';
+  if (status==='expired') return '<span class="badge badge-expired">VENCIDO</span>';
+  if (status==='expiring') return '<span class="badge badge-warning">POR VENCER</span>';
+  return '';
+}
+function renderMembersTable() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const tbody = document.getElementById('members-tbody');
+  const filtered = members.filter(m => (currentFilter==='all'||m.plan===currentFilter) && (m.name.toLowerCase().includes(search)||m.phone.includes(search)));
+  tbody.innerHTML = filtered.map(m => {
+    const status = getMemberStatus(m);
+    const dl = m.plan==='monthly' ? daysLeft(m.expiry) : null;
+    const vencInfo = m.plan==='monthly' ? formatDate(m.expiry) : 'Pago por clase';
+    const daysDisplay = m.plan==='monthly'&&dl!==null ? `<span class="days-left ${daysClass(dl)}">${dl<0?'VENCIDO':dl+' días'}</span>` : '—';
+    const waBtn = m.phone ? `<button class="btn btn-sm" style="background:#25D366;color:white;" onclick="sendWhatsApp(${m.id})">💬 WA</button>` : '';
+    return `<tr><td><div class="member-name">${m.name}</div><div class="member-id">${m.phone}</div></td><td><span class="badge ${m.plan==='perclass'?'badge-perclass':''}">${m.plan==='monthly'?'📅 Mensual':'🎟 Por Clase'}</span></td><td>${statusBadge(status)}</td><td>${vencInfo}</td><td>${daysDisplay}</td><td><div class="actions-cell"><button class="btn btn-outline btn-sm" onclick="editMember(${m.id})">✏ Editar</button><button class="btn btn-gold btn-sm" onclick="quickPay(${m.id})">💰 Pago</button>${waBtn}<button class="btn btn-outline btn-sm" onclick="viewMemberHistory(${m.id})" style="border-color:#555;color:#888;">📋</button><button class="btn btn-danger btn-sm" onclick="deleteMember(${m.id})">🗑</button></div></td></tr>`;
+  }).join('');
+}
+function renderPaymentsTable() {
+  const tbody = document.getElementById('payments-tbody');
+  tbody.innerHTML = [...payments].sort((a,b)=>b.date.localeCompare(a.date)).map(p=>`<tr><td>${formatDate(p.date)}</td><td>${memberName(p.memberId)}</td><td>${p.concept}</td><td style="font-family:'Bebas Neue';font-size:18px;color:var(--gold)">$${p.amount}</td><td>${p.method}</td><td><button class="btn btn-danger btn-sm" onclick="deletePayment(${p.id})">🗑</button></td></tr>`).join('');
+}
+function renderClasses() {
+  document.getElementById('classes-grid').innerHTML = [...classes].sort((a,b)=>b.date.localeCompare(a.date)).map(c=>`<div class="class-card"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;"><h3>${c.type}</h3><button class="btn btn-danger btn-sm" onclick="deleteClass(${c.id})">🗑 Borrar</button></div><div class="class-meta">${formatDate(c.date)} · ${c.attendees.length} asistentes</div><div class="class-attendees">${c.attendees.map(id=>`<span class="attendee-tag">${memberName(id)}</span>`).join('')}</div></div>`).join('');
+}
+function renderAlerts() {
+  const list = document.getElementById('alerts-list');
+  const alerts = [];
+  members.forEach(m => {
+    const s = getMemberStatus(m);
+    if (s==='expired') alerts.push({type:'danger',icon:'🚨',name:m.name,msg:'Mensualidad vencida — requiere renovación'});
+    else if (s==='expiring') alerts.push({type:'warning',icon:'⏳',name:m.name,msg:`Vence en ${daysLeft(m.expiry)} días (${formatDate(m.expiry)})`});
+
+  });
+  list.innerHTML = alerts.length===0 ? '<div style="text-align:center;padding:40px;color:var(--gray-light)">✅ Sin alertas activas</div>' :
+    alerts.map(a=>{
+    const m = members.find(x=>x.name===a.name);
+    const waBtn = m && m.phone ? `<button class="btn btn-sm" style="background:#25D366;color:white;margin-right:6px;" onclick="sendWhatsApp(${m.id})">💬 WA</button>` : '';
+    return `<div class="alert-item ${a.type}"><div class="alert-icon">${a.icon}</div><div class="alert-text"><strong>${a.name}</strong><span>${a.msg}</span></div>${waBtn}<button class="btn btn-gold btn-sm" onclick="quickPay(${m?.id})">Renovar</button></div>`;
+  }).join('');
+}
+function renderDashboardExpiring() {
+  const tbody = document.getElementById('expiring-tbody');
+  const urgent = members.filter(m => { const s=getMemberStatus(m); return s==='expired'||s==='expiring'; });
+  if (!urgent.length) { tbody.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--gray-light);padding:24px">Sin vencimientos próximos</td></tr>'; return; }
+  tbody.innerHTML = urgent.map(m => {
+    const dl = m.plan==='monthly' ? daysLeft(m.expiry) : null;
+    const pct = dl!==null ? Math.max(0,Math.min(100,(dl/30)*100)) : 0;
+    const barClass = dl!==null&&dl<0?'danger':dl<=7?'warning':'';
+    const waBtn2 = m.phone ? `<button class="btn btn-sm" style="background:#25D366;color:white;margin-left:6px;" onclick="sendWhatsApp(${m.id})">💬 WA</button>` : '';
+    return `<tr><td><div class="member-name">${m.name}</div><div class="member-id">${m.phone}</div></td><td>${m.plan==='monthly'?'Mensual':'Por Clase'}</td><td>${formatDate(m.expiry)}</td><td><span class="days-left ${daysClass(dl)}">${dl!==null?(dl<0?'VENCIDO':dl+' días'):'—'}</span>${m.plan==='monthly'?`<div class="progress-bar"><div class="progress-fill ${barClass}" style="width:${pct}%"></div></div>`:''}</td><td><button class="btn btn-gold btn-sm" onclick="quickPay(${m.id})">💰 Cobrar</button>${waBtn2}</td></tr>`;
+  }).join('');
+}
+function renderRecentPayments() {
+  document.getElementById('recent-payments').innerHTML = [...payments].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5).map(p=>`<div class="payment-row"><div class="pay-info"><strong>${memberName(p.memberId)}</strong><span>${p.concept} · ${formatDate(p.date)} · ${p.method}</span></div><div class="payment-amount">$${p.amount}</div></div>`).join('');
+}
+function showPage(page, el) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  el.classList.add('active');
+  const titles={dashboard:'DASHBOARD',members:'MIEMBROS',payments:'PAGOS',classes:'ASISTENCIA',alerts:'ALERTAS',reports:'REPORTES'};
+  document.getElementById('page-title').textContent = titles[page]||page.toUpperCase();
+  render();
+  if (page === 'reports') renderReports();
+  if (page === 'expenses') { renderExpenses(); document.getElementById('exp-date').value=today(); }
+}
+function filterByType(type, el) { currentFilter=type; document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active')); el.classList.add('active'); renderMembersTable(); }
+function filterMembers() { renderMembersTable(); }
+function openModal(id) {
+  document.getElementById(id).classList.add('open');
+  if (id==='add-member-modal') document.getElementById('new-start').value=today();
+  if (id==='add-payment-modal'||id==='add-class-modal') {
+    populateMemberSelect();
+    document.getElementById('pay-date')&&(document.getElementById('pay-date').value=today());
+    document.getElementById('class-date')&&(document.getElementById('class-date').value=today());
+    if (id==='add-class-modal') buildAttendeesCheckboxes();
+  }
+}
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+window.addEventListener('click', e => { if (e.target.classList.contains('modal-overlay')) e.target.classList.remove('open'); });
+function togglePlanFields() { const p=document.getElementById('new-plan').value; document.getElementById('monthly-fields').style.display=p==='monthly'?'':'none'; document.getElementById('perclass-fields').style.display=p==='perclass'?'':'none'; }
+function populateMemberSelect() { const sel=document.getElementById('pay-member'); if(!sel) return; sel.innerHTML=members.map(m=>`<option value="${m.id}">${m.name}</option>`).join(''); }
+function buildAttendeesCheckboxes() { document.getElementById('class-attendees-list').innerHTML=members.map(m=>`<label style="display:flex;align-items:center;gap:6px;cursor:pointer;background:var(--dark2);padding:6px 12px;border-radius:6px;font-size:13px;width:auto;margin:0;text-transform:none;letter-spacing:0;color:var(--white);font-family:'Barlow',sans-serif"><input type="checkbox" value="${m.id}" style="width:auto;background:none;border:none;padding:0;accent-color:var(--gold)"> ${m.name}</label>`).join(''); }
+async function addMember() {
+  const name=document.getElementById('new-name').value.trim();
+  if (!name) { alert('Ingresa el nombre'); return; }
+  const plan=document.getElementById('new-plan').value;
+  const phone=document.getElementById('new-phone').value.trim();
+  const price=parseFloat(document.getElementById('new-price').value)||0;
+  const notes=document.getElementById('new-notes').value;
+  const start=document.getElementById('new-start').value||today();
+  let expiry=null,classesLeft=null,duration=1;
+  if (plan==='monthly') { duration=parseInt(document.getElementById('new-duration').value); expiry=addMonths(start,duration); }
+  else { classesLeft=null; }
+  const newMember={id:nextId++,name,phone,plan,start,expiry,duration,price,status:'active',notes,classesLeft};
+  const ok = await dbAddMember(newMember);
+  if (!ok) return;
+  members.push(newMember);
+  closeModal('add-member-modal');
+  document.getElementById('new-name').value=''; document.getElementById('new-phone').value='';
+  render(); showSaveToast();
+}
+async function addPayment() {
+  const memberId=parseInt(document.getElementById('pay-member').value);
+  const concept=document.getElementById('pay-concept').value;
+  const amount=parseFloat(document.getElementById('pay-amount').value)||0;
+  const method=document.getElementById('pay-method').value;
+  const date=document.getElementById('pay-date').value||today();
+  const newPayment={id:Date.now(),memberId,date,concept,amount,method};
+  const ok = await dbAddPayment(newPayment);
+  if (!ok) return;
+  payments.push(newPayment);
+  const m=members.find(x=>x.id===memberId);
+  if (concept==='Mensualidad'&&m&&m.plan==='monthly') {
+    const base=m.expiry&&daysLeft(m.expiry)>=0?m.expiry:today();
+    m.expiry=addMonths(base,m.duration||1); m.status='active';
+    await dbUpdateMember(m);
+  }
+
+  closeModal('add-payment-modal'); render(); showSaveToast();
+}
+async function saveClass() {
+  const type=document.getElementById('class-type').value;
+  const date=document.getElementById('class-date').value;
+  const checked=document.querySelectorAll('#class-attendees-list input:checked');
+  const attendees=[...checked].map(c=>parseInt(c.value));
+  const newClass={id:Date.now(),type,date,attendees};
+  const ok = await dbAddClass(newClass);
+  if (!ok) return;
+  classes.push(newClass);
+
+  // Auto-register payment for per-class members
+  for (const id of attendees) {
+    const m=members.find(x=>x.id===id);
+    if (m && m.plan==='perclass') {
+      // Register payment automatically
+      const newPayment = {
+        id: Date.now() + id,
+        memberId: m.id,
+        date: date,
+        concept: 'Clase individual',
+        amount: m.price || 0,
+        method: 'Efectivo'
+      };
+      await dbAddPayment(newPayment);
+      payments.push(newPayment);
+    }
+  }
+
+  closeModal('add-class-modal'); render(); showSaveToast();
+  
+  // Show summary of charges
+  const perClassAttendees = attendees.map(id => members.find(x=>x.id===id)).filter(m=>m&&m.plan==='perclass');
+  if (perClassAttendees.length > 0) {
+    const total = perClassAttendees.reduce((s,m)=>s+(m.price||0),0);
+    const names = perClassAttendees.map(m=>m.name.split(' ')[0]).join(', ');
+    showToast(`💰 COBRADO: ${names} — $${total}`, '#b8960c');
+  }
+}
+function editMember(id) {
+  const m=members.find(x=>x.id===id); if(!m) return;
+  document.getElementById('edit-id').value=id;
+  document.getElementById('edit-name').value=m.name;
+  document.getElementById('edit-phone').value=m.phone||'';
+  document.getElementById('edit-status').value=m.status;
+  document.getElementById('edit-expiry').value=m.expiry||'';
+  document.getElementById('edit-notes').value=m.notes||'';
+  document.getElementById('edit-price').value=m.price||'';
+  document.getElementById('edit-duration').value=m.duration||1;
+  openModal('edit-member-modal');
+}
+async function saveEdit() {
+  const id=parseInt(document.getElementById('edit-id').value);
+  const m=members.find(x=>x.id===id); if(!m) return;
+  m.name=document.getElementById('edit-name').value;
+  m.phone=document.getElementById('edit-phone').value;
+  m.status=document.getElementById('edit-status').value;
+  m.expiry=document.getElementById('edit-expiry').value||null;
+  m.notes=document.getElementById('edit-notes').value;
+  const newPrice=parseFloat(document.getElementById('edit-price').value);
+  if(!isNaN(newPrice)) m.price=newPrice;
+  const newDur=parseInt(document.getElementById('edit-duration').value);
+  if(!isNaN(newDur)) m.duration=newDur;
+  await dbUpdateMember(m);
+  closeModal('edit-member-modal'); render(); showSaveToast();
+}
+async function deleteMember(id) { if(!confirm('¿Eliminar este miembro?')) return; const ok=await dbDeleteMember(id); if(!ok) return; members=members.filter(m=>m.id!==id); render(); showSaveToast(); }
+function quickPay(id) { openModal('add-payment-modal'); populateMemberSelect(); document.getElementById('pay-member').value=id; document.getElementById('pay-date').value=today(); }
+
+// ========= EXPORT / IMPORT =========
+function exportData() {
+  const data = {
+    version: '1.1',
+    exportDate: today(),
+    members,
+    payments,
+    classes,
+    nextId
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'colorado-boxing-backup-' + data.exportDate + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('✓ EXPORTADO', '#b8960c');
+}
+
+function importData(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.members || !data.payments || !data.classes) {
+        showToast('✗ ARCHIVO INVÁLIDO', '#c0392b'); return;
+      }
+      if (!confirm('¿Importar datos? Esto reemplazará todo lo actual.')) return;
+      members = data.members;
+      payments = data.payments;
+      classes = data.classes;
+      nextId = data.nextId || 100;
+      saveData();
+      render();
+      showToast('✓ IMPORTADO CORRECTAMENTE', '#27ae60');
+    } catch(err) {
+      showToast('✗ ERROR AL LEER ARCHIVO', '#c0392b');
+    }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function showToast(msg, color) {
+  let toast = document.getElementById('save-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'save-toast';
+    toast.style.cssText = 'position:fixed;bottom:24px;right:24px;color:white;padding:10px 18px;border-radius:8px;font-family:Oswald,sans-serif;font-size:13px;letter-spacing:1px;z-index:9999;transition:opacity 0.4s;pointer-events:none;';
+    document.body.appendChild(toast);
+  }
+  toast.style.background = color || '#27ae60';
+  toast.textContent = msg;
+  toast.style.opacity = '1';
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => toast.style.opacity = '0', 2000);
+}
+
+// ========= WHATSAPP =========
+function sendWhatsApp(id) {
+  const m = members.find(x => x.id === id);
+  if (!m || !m.phone) { alert('Este miembro no tiene teléfono registrado'); return; }
+
+  const status = getMemberStatus(m);
+  const dl = daysLeft(m.expiry);
+  const gymName = "Colorado's Boxing Club";
+
+  let mensaje = '';
+
+  if (status === 'expired') {
+    mensaje = `Hola ${m.name.split(' ')[0]}! 👊 Te habla ${gymName}. Tu membresía ha *vencido*. ¡Renueva hoy y sigue entrenando! Cualquier duda aquí estamos 💪`;
+  } else if (status === 'expiring') {
+    mensaje = `Hola ${m.name.split(' ')[0]}! 👊 Te habla ${gymName}. Tu membresía vence en *${dl} días* (${formatDate(m.expiry)}). ¡No pierdas tu lugar, renueva a tiempo! 💪`;
+  } else if (m.plan === 'perclass' && m.classesLeft <= 2) {
+    mensaje = `Hola ${m.name.split(' ')[0]}! 👊 Te habla ${gymName}. Solo te quedan *${m.classesLeft} clase(s)*. ¡Recarga tu paquete para seguir entrenando! 💪`;
+  } else {
+    mensaje = `Hola ${m.name.split(' ')[0]}! 👊 Te habla ${gymName}. ¿Cómo estás? Aquí para cualquier cosa que necesites 💪`;
+  }
+
+  // Clean phone number - remove spaces, dashes, parentheses
+  let phone = m.phone.replace(/[\s\-\(\)]/g, '');
+  // Add Mexico country code if no + prefix
+  if (!phone.startsWith('+') && !phone.startsWith('52')) {
+    phone = '52' + phone;
+  }
+  phone = phone.replace('+', '');
+
+  const url = `https://wa.me/${phone}?text=${encodeURIComponent(mensaje)}`;
+  window.open(url, '_blank');
+}
+
+// ========= DELETE PAYMENT =========
+async function deletePayment(id) {
+  if (!confirm('¿Eliminar este pago?')) return;
+  const { error } = await sb.from('payments').delete().eq('id', id);
+  if (error) { showToast('✗ ERROR AL ELIMINAR', '#c0392b'); return; }
+  payments = payments.filter(p => p.id !== id);
+  render();
+  showToast('🗑 PAGO ELIMINADO', '#c0392b');
+}
+
+// ========= DELETE CLASS =========
+async function deleteClass(id) {
+  if (!confirm('¿Borrar esta clase? También se eliminarán los pagos asociados.')) return;
+  
+  const cls = classes.find(c => c.id === id);
+  if (!cls) return;
+
+  // Delete associated payments for per-class members
+  const perClassAttendees = (cls.attendees || []).filter(aid => {
+    const m = members.find(x => x.id === aid);
+    return m && m.plan === 'perclass';
+  });
+
+  for (const aid of perClassAttendees) {
+    // Find payments on same date for this member with concept 'Clase individual'
+    const relatedPayments = payments.filter(p => 
+      p.memberId === aid && 
+      p.date === cls.date && 
+      p.concept === 'Clase individual'
+    );
+    for (const p of relatedPayments) {
+      await sb.from('payments').delete().eq('id', p.id);
+      payments = payments.filter(x => x.id !== p.id);
+    }
+  }
+
+  // Delete the class
+  const { error } = await sb.from('classes').delete().eq('id', id);
+  if (error) { showToast('✗ ERROR AL ELIMINAR', '#c0392b'); return; }
+  classes = classes.filter(c => c.id !== id);
+  render();
+  showToast('🗑 CLASE Y PAGOS ELIMINADOS', '#c0392b');
+}
+
+// ========= REPORTS =========
+let reportPeriod = 'day';
+
+function setReportPeriod(period, el) {
+  reportPeriod = period;
+  document.querySelectorAll('#page-reports .tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  renderReports();
+}
+
+function getDateRange(period) {
+  const todayStr = today();
+  if (period === 'day') {
+    return { start: todayStr, end: todayStr };
+  } else if (period === 'week') {
+    const now = new Date();
+    const day = now.getDay();
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1));
+    const ms = `${monday.getFullYear()}-${String(monday.getMonth()+1).padStart(2,'0')}-${String(monday.getDate()).padStart(2,'0')}`;
+    return { start: ms, end: todayStr };
+  } else {
+    const now = new Date();
+    const start = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
+    return { start, end: todayStr };
+  }
+}
+
+function inRange(dateStr, range) {
+  if (!dateStr) return false;
+  return dateStr >= range.start && dateStr <= range.end;
+}
+
+function renderReports() {
+  const range = getDateRange(reportPeriod);
+
+  const filteredPayments = payments.filter(p => inRange(p.date, range));
+  const filteredClasses = classes.filter(c => inRange(c.date, range));
+  const filteredMembers = members.filter(m => inRange(m.start, range));
+
+  const totalIngresos = filteredPayments.reduce((s, p) => s + (p.amount || 0), 0);
+  const totalAsistencia = filteredClasses.reduce((s, c) => s + (c.attendees?.length || 0), 0);
+  const totalClases = filteredClasses.length;
+  const totalNuevos = filteredMembers.length;
+
+  // Stats
+  document.getElementById('report-stats').innerHTML = `
+    <div class="stat-card success">
+      <div class="stat-icon">💰</div>
+      <div class="stat-value">$${totalIngresos}</div>
+      <div class="stat-label">Ingresos</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">🥊</div>
+      <div class="stat-value">${totalClases}</div>
+      <div class="stat-label">Clases</div>
+    </div>
+    <div class="stat-card warning">
+      <div class="stat-icon">👥</div>
+      <div class="stat-value">${totalAsistencia}</div>
+      <div class="stat-label">Asistencias</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">🆕</div>
+      <div class="stat-value">${totalNuevos}</div>
+      <div class="stat-label">Nuevos Miembros</div>
+    </div>
+  `;
+
+  // Payments table
+  const payTbody = document.getElementById('report-payments-tbody');
+  if (filteredPayments.length === 0) {
+    payTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--gray-light);padding:16px">Sin ingresos</td></tr>';
+  } else {
+    payTbody.innerHTML = filteredPayments
+      .sort((a,b) => b.date.localeCompare(a.date))
+      .map(p => `<tr>
+        <td>${formatDate(p.date)}</td>
+        <td>${memberName(p.memberId)}</td>
+        <td>${p.concept}</td>
+        <td style="font-family:'Bebas Neue';font-size:18px;color:var(--gold)">$${p.amount}</td>
+        <td>${p.method}</td>
+      </tr>`).join('');
+  }
+
+  // Classes table
+  const classTbody = document.getElementById('report-classes-tbody');
+  if (filteredClasses.length === 0) {
+    classTbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--gray-light);padding:16px">Sin clases</td></tr>';
+  } else {
+    classTbody.innerHTML = filteredClasses
+      .sort((a,b) => b.date.localeCompare(a.date))
+      .map(c => `<tr>
+        <td>${formatDate(c.date)}</td>
+        <td>${c.type}</td>
+        <td><span style="font-family:'Bebas Neue';font-size:18px;color:var(--gold)">${c.attendees?.length || 0}</span></td>
+      </tr>`).join('');
+  }
+
+  // New members table
+  const memTbody = document.getElementById('report-members-tbody');
+  if (filteredMembers.length === 0) {
+    memTbody.innerHTML = '<tr><td colspan="3" style="text-align:center;color:var(--gray-light);padding:16px">Sin nuevos miembros</td></tr>';
+  } else {
+    memTbody.innerHTML = filteredMembers
+      .sort((a,b) => b.start.localeCompare(a.start))
+      .map(m => `<tr>
+        <td>${formatDate(m.start)}</td>
+        <td>${m.name}</td>
+        <td><span class="badge ${m.plan==='perclass'?'badge-perclass':''}">${m.plan==='monthly'?'📅 Mensual':'🎟 Por Clase'}</span></td>
+      </tr>`).join('');
+  }
+}
+
+
+// ========= PIN ACCESS =========
+const APP_PIN = '1234'; // Cambia este PIN
+function checkPin() {
+  const input = document.getElementById('pin-input-login').value;
+  if (input === APP_PIN) {
+    document.getElementById('pin-overlay').style.display = 'none';
+    sessionStorage.setItem('boxing_auth', '1');
+  } else {
+    document.getElementById('pin-error').textContent = 'PIN incorrecto';
+    document.getElementById('pin-input-login').value = '';
+    setTimeout(() => document.getElementById('pin-error').textContent = '', 2000);
+  }
+}
+function logout() {
+  if (!confirm('¿Cerrar sesión?')) return;
+  sessionStorage.removeItem('boxing_auth');
+  location.reload();
+}
+if (sessionStorage.getItem('boxing_auth') === '1') {
+  document.getElementById('pin-overlay').style.display = 'none';
+}
+
+// ========= PAYMENT FILTER =========
+let paymentFilter = 'all';
+let paymentFilterDate = '';
+let conceptFilter = 'all';
+
+function setConceptFilter(type, el) {
+  conceptFilter = type;
+  if (el) {
+    document.querySelectorAll('#page-payments .tab-bar:nth-child(2) .tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+  }
+  renderPaymentsTable();
+}
+
+function setPaymentFilter(type, el) {
+  paymentFilter = type;
+  if (type !== 'date' && type !== 'month-sel') {
+    document.getElementById('pay-filter-date').value = '';
+    paymentFilterDate = '';
+  }
+  if (el) {
+    document.querySelectorAll('#page-payments .tab-bar:first-child .tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+  }
+  renderPaymentsTable();
+}
+
+function renderPaymentsTable() {
+  buildPaymentMonthSelector();
+  let filtered = [...payments];
+  const t = today();
+  const now = new Date();
+  // Filtro de fecha
+  if (paymentFilter === 'today') {
+    filtered = filtered.filter(p => p.date === t);
+  } else if (paymentFilter === 'week') {
+    const range = getDateRange('week');
+    filtered = filtered.filter(p => p.date >= range.start && p.date <= range.end);
+  } else if (paymentFilter === 'month') {
+    const cm = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+    filtered = filtered.filter(p => p.date && p.date.startsWith(cm));
+  } else if (paymentFilter === 'prevmonth') {
+    const d = new Date(now.getFullYear(), now.getMonth()-1, 1);
+    const pm = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    filtered = filtered.filter(p => p.date && p.date.startsWith(pm));
+  } else if (paymentFilter === 'month-sel') {
+    const selMonth = document.getElementById('month-selector')?.value;
+    if (selMonth) filtered = filtered.filter(p => p.date && p.date.startsWith(selMonth));
+  } else if (paymentFilter === 'date') {
+    const selDate = document.getElementById('pay-filter-date').value;
+    if (selDate) filtered = filtered.filter(p => p.date === selDate);
+  }
+  // Filtro de concepto
+  if (conceptFilter === 'Mensualidad') {
+    filtered = filtered.filter(p => p.concept === 'Mensualidad');
+  } else if (conceptFilter === 'Clase individual') {
+    filtered = filtered.filter(p => p.concept === 'Clase individual' || p.concept === 'Pack de clases');
+  } else if (conceptFilter === 'other') {
+    filtered = filtered.filter(p => p.concept !== 'Mensualidad' && p.concept !== 'Clase individual' && p.concept !== 'Pack de clases');
+  }
+  filtered.sort((a,b) => b.date.localeCompare(a.date));
+  const total = filtered.reduce((s,p) => s+(p.amount||0), 0);
+  const disp = document.getElementById('pay-total-display');
+  if (disp) disp.textContent = filtered.length ? `Total: $${total}` : '';
+  const tbody = document.getElementById('payments-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = filtered.length
+    ? filtered.map(p => `<tr><td>${formatDate(p.date)}</td><td>${memberName(p.memberId)}</td><td>${p.concept}</td><td style="font-family:'Bebas Neue';font-size:18px;color:var(--gold)">$${p.amount}</td><td>${p.method}</td><td><button class="btn btn-danger btn-sm" onclick="deletePayment(${p.id})">🗑</button></td></tr>`).join('')
+    : '<tr><td colspan="6" style="text-align:center;color:var(--gray-light);padding:20px;">Sin pagos en este período</td></tr>';
+}
+
+// ========= MEMBER HISTORY =========
+function viewMemberHistory(id) {
+  const m = members.find(x => x.id === id);
+  if (!m) return;
+  const mPayments = payments.filter(p => p.memberId === id).sort((a,b) => b.date.localeCompare(a.date));
+  const mClasses = classes.filter(c => c.attendees && c.attendees.includes(id)).sort((a,b) => b.date.localeCompare(a.date));
+  const total = mPayments.reduce((s,p) => s+(p.amount||0), 0);
+  document.getElementById('history-modal-title').textContent = m.name.toUpperCase();
+  document.getElementById('member-history-content').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:20px;">
+      <div style="background:var(--dark3);border-radius:8px;padding:14px;text-align:center;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--gold);">${mPayments.length}</div>
+        <div style="font-size:11px;color:var(--gray-light);letter-spacing:1px;">PAGOS</div>
+      </div>
+      <div style="background:var(--dark3);border-radius:8px;padding:14px;text-align:center;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--gold);">$${total}</div>
+        <div style="font-size:11px;color:var(--gray-light);letter-spacing:1px;">TOTAL</div>
+      </div>
+      <div style="background:var(--dark3);border-radius:8px;padding:14px;text-align:center;">
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:28px;color:var(--gold);">${mClasses.length}</div>
+        <div style="font-size:11px;color:var(--gray-light);letter-spacing:1px;">CLASES</div>
+      </div>
+    </div>
+    <div style="font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:2px;color:var(--gold);margin-bottom:10px;">PAGOS</div>
+    ${mPayments.length ? mPayments.map(p => `
+      <div style="display:flex;justify-content:space-between;align-items:center;background:var(--dark3);border-radius:6px;padding:10px 14px;margin-bottom:6px;">
+        <div><div style="font-size:13px;font-weight:600;">${p.concept}</div><div style="font-size:11px;color:var(--gray-light);">${formatDate(p.date)} · ${p.method}</div></div>
+        <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;color:var(--gold);">$${p.amount}</div>
+      </div>`).join('') : '<div style="color:var(--gray-light);font-size:13px;text-align:center;padding:12px;">Sin pagos registrados</div>'}
+    <div style="font-family:'Oswald',sans-serif;font-size:13px;letter-spacing:2px;color:var(--gold);margin:14px 0 10px;">CLASES ASISTIDAS</div>
+    ${mClasses.length ? mClasses.map(c => `
+      <div style="display:flex;justify-content:space-between;background:var(--dark3);border-radius:6px;padding:10px 14px;margin-bottom:6px;">
+        <div style="font-size:13px;font-weight:600;">${c.type}</div>
+        <div style="font-size:12px;color:var(--gray-light);">${formatDate(c.date)}</div>
+      </div>`).join('') : '<div style="color:var(--gray-light);font-size:13px;text-align:center;padding:12px;">Sin clases registradas</div>'}
+  `;
+  openModal('member-history-modal');
+}
+
+// ========= WHATSAPP MASIVO =========
+function sendWhatsAppBulk() {
+  const expired = members.filter(m => getMemberStatus(m) === 'expired' || getMemberStatus(m) === 'expiring');
+  if (!expired.length) { showToast('✓ Sin vencimientos pendientes', '#27ae60'); return; }
+  const withPhone = expired.filter(m => m.phone);
+  if (!withPhone.length) { showToast('✗ Ningún miembro tiene teléfono', '#c0392b'); return; }
+  if (!confirm(`¿Enviar recordatorio por WhatsApp a ${withPhone.length} miembro(s)?`)) return;
+  withPhone.forEach((m, i) => setTimeout(() => sendWhatsApp(m.id), i * 800));
+  showToast(`📲 Enviando a ${withPhone.length} miembros...`, '#b8960c');
+}
+
+
+// ========= EXPENSES =========
+let expenses = [];
+let expenseFilter = 'month';
+
+async function dbAddExpense(e) {
+  const { error } = await sb.from('expenses').insert([e]);
+  if (error) { showToast('✗ ERROR AL GUARDAR', '#c0392b'); return false; }
+  return true;
+}
+async function dbDeleteExpense(id) {
+  const { error } = await sb.from('expenses').delete().eq('id', id);
+  if (error) { showToast('✗ ERROR AL ELIMINAR', '#c0392b'); return false; }
+  return true;
+}
+
+async function addExpense() {
+  const category = document.getElementById('exp-category').value;
+  const amount = parseFloat(document.getElementById('exp-amount').value) || 0;
+  const date = document.getElementById('exp-date').value || today();
+  const method = document.getElementById('exp-method').value;
+  const description = document.getElementById('exp-description').value.trim();
+  if (!amount) { showToast('✗ Ingresa un monto', '#c0392b'); return; }
+  const newExpense = { id: Date.now(), category, amount, date, method, description };
+  const ok = await dbAddExpense(newExpense);
+  if (!ok) return;
+  expenses.push(newExpense);
+  closeModal('add-expense-modal');
+  document.getElementById('exp-amount').value = '';
+  document.getElementById('exp-description').value = '';
+  renderExpenses();
+  showSaveToast();
+}
+
+async function deleteExpense(id) {
+  if (!confirm('¿Eliminar este gasto?')) return;
+  const ok = await dbDeleteExpense(id);
+  if (!ok) return;
+  expenses = expenses.filter(e => e.id !== id);
+  renderExpenses();
+  showToast('🗑 GASTO ELIMINADO', '#c0392b');
+}
+
+function getExpenseRange() {
+  const now = new Date();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  if (expenseFilter === 'month') return currentMonth;
+  if (expenseFilter === 'prevmonth') {
+    const d = new Date(now.getFullYear(), now.getMonth()-1, 1);
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  }
+  if (expenseFilter === 'month-sel') {
+    const sel = document.getElementById('expense-month-selector');
+    return sel ? sel.value : currentMonth;
+  }
+  return null; // all
+}
+
+function setExpenseFilter(type, el) {
+  expenseFilter = type;
+  if (el) {
+    document.querySelectorAll('#page-expenses .tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+  }
+  renderExpenses();
+}
+
+function renderExpenses() {
+  // Build month selector
+  buildExpenseMonthSelector();
+  const monthStr = getExpenseRange();
+  let filtered = monthStr && expenseFilter !== 'all'
+    ? expenses.filter(e => e.date && e.date.startsWith(monthStr))
+    : [...expenses];
+  filtered.sort((a,b) => b.date.localeCompare(a.date));
+
+  // Summary ingresos vs gastos
+  const now = new Date();
+  const currentMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  const summaryMonth = monthStr || currentMonth;
+  const totalIngresos = payments.filter(p => p.date && p.date.startsWith(summaryMonth)).reduce((s,p) => s+(p.amount||0), 0);
+  const totalGastos = filtered.reduce((s,e) => s+(e.amount||0), 0);
+  const balance = totalIngresos - totalGastos;
+  const balanceColor = balance >= 0 ? 'var(--success)' : 'var(--danger)';
+  const balanceIcon = balance >= 0 ? '📈' : '📉';
+
+  document.getElementById('expense-summary').innerHTML = `
+    <div class="stat-card success"><div class="stat-icon">💰</div><div class="stat-value">$${totalIngresos}</div><div class="stat-label">Ingresos</div></div>
+    <div class="stat-card danger"><div class="stat-icon">💸</div><div class="stat-value">$${totalGastos}</div><div class="stat-label">Gastos</div></div>
+    <div class="stat-card" style="border-top-color:${balanceColor}"><div class="stat-icon">${balanceIcon}</div><div class="stat-value" style="color:${balanceColor}">$${Math.abs(balance)}</div><div class="stat-label">${balance>=0?'Ganancia':'Pérdida'}</div></div>
+    <div class="stat-card"><div class="stat-icon">📊</div><div class="stat-value" style="font-size:24px;">${totalIngresos>0?Math.round((totalGastos/totalIngresos)*100):0}%</div><div class="stat-label">Gastos / Ingresos</div></div>
+  `;
+
+  // Expenses table
+  const tbody = document.getElementById('expenses-tbody');
+  tbody.innerHTML = filtered.length
+    ? filtered.map(e => `<tr>
+        <td>${formatDate(e.date)}</td>
+        <td><span class="badge" style="background:rgba(192,57,43,0.15);color:#e74c3c;">${e.category}</span></td>
+        <td style="color:var(--gray-light);font-size:13px;">${e.description||'—'}</td>
+        <td style="font-family:'Bebas Neue';font-size:18px;color:var(--danger);">$${e.amount}</td>
+        <td><button class="btn btn-danger btn-sm" onclick="deleteExpense(${e.id})">🗑</button></td>
+      </tr>`).join('')
+    : '<tr><td colspan="5" style="text-align:center;color:var(--gray-light);padding:20px;">Sin gastos en este período</td></tr>';
+}
+
+function buildMonthSelector(selectorId) {
+  const sel = document.getElementById(selectorId);
+  if (!sel) return;
+  const now = new Date();
+  const months = [];
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const val = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const label = d.toLocaleDateString('es-MX', {month:'long', year:'numeric'});
+    months.push(`<option value="${val}">${label.charAt(0).toUpperCase()+label.slice(1)}</option>`);
+  }
+  sel.innerHTML = months.join('');
+}
+
+function buildExpenseMonthSelector() { buildMonthSelector('expense-month-selector'); }
+function buildPaymentMonthSelector() { buildMonthSelector('month-selector'); }
+
+loadData();
+</script>
+
+<!-- PIN LOGIN -->
+<div id="pin-overlay" style="position:fixed;inset:0;background:#0d0d0d;z-index:99999;display:flex;align-items:center;justify-content:center;min-height:100vh;min-height:100dvh;">
+  <div style="background:#141414;border:1px solid #2a2a2a;border-radius:16px;padding:40px;width:340px;max-width:90vw;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.8);position:relative;top:0;transform:none;">
+    <img src="https://coloradosboxing-cpu.github.io/Boxing-app/logo.png" style="width:80px;height:80px;object-fit:contain;margin-bottom:16px;filter:drop-shadow(0 0 12px rgba(184,150,12,0.4));">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:3px;color:#b8960c;margin-bottom:24px;">COLORADO'S BOXING CLUB</div>
+    <div style="font-family:'Oswald',sans-serif;font-size:14px;letter-spacing:2px;color:#888;margin-bottom:16px;">INGRESA TU PIN</div>
+    <input id="pin-input-login" type="password" inputmode="numeric" maxlength="6" placeholder="••••••"
+      style="width:100%;background:#1e1e1e;border:1px solid #333;border-radius:8px;padding:14px;color:#f5f5f0;font-size:24px;text-align:center;letter-spacing:8px;outline:none;margin-bottom:8px;font-family:'Barlow',sans-serif;"
+      onkeydown="if(event.key==='Enter')checkPin()">
+    <div id="pin-error" style="color:#e74c3c;font-size:12px;font-family:'Oswald',sans-serif;letter-spacing:1px;min-height:18px;margin-bottom:12px;"></div>
+    <button onclick="checkPin()" style="width:100%;padding:12px;background:#b8960c;border:none;border-radius:8px;color:#000;font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;cursor:pointer;">ENTRAR</button>
+  </div>
+</div>
+
+</body>
+</html>
